@@ -1,0 +1,2312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Math Facts</title>
+<style>
+/* ============================================================
+   ROOT VARIABLES & RESET
+   ============================================================ */
+:root {
+  --primary: #3B82F6;
+  --primary-dark: #1D4ED8;
+  --primary-light: #DBEAFE;
+  --correct: #22C55E;
+  --correct-light: #DCFCE7;
+  --error: #EF4444;
+  --error-light: #FEE2E2;
+  --warning: #F59E0B;
+  --warning-light: #FEF3C7;
+  --neutral: #6B7280;
+  --neutral-light: #F3F4F6;
+  --text: #111827;
+  --text-light: #6B7280;
+  --white: #FFFFFF;
+  --border: #E5E7EB;
+  --shadow: 0 2px 8px rgba(0,0,0,0.12);
+  --shadow-lg: 0 4px 20px rgba(0,0,0,0.18);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --cell-size: min(9vw, 9vh, 52px);
+  --keypad-btn-size: min(18vw, 14vh, 72px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #F0F4FF;
+  color: var(--text);
+  touch-action: manipulation;
+}
+
+/* ============================================================
+   SCREENS
+   ============================================================ */
+.screen {
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0; left: 0;
+}
+.screen.active { display: flex; }
+
+/* ============================================================
+   HOME SCREEN
+   ============================================================ */
+#home-screen {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 20px 16px 30px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.home-header {
+  text-align: center;
+  margin-bottom: 24px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.home-header h1 {
+  font-size: clamp(28px, 6vw, 48px);
+  font-weight: 800;
+  letter-spacing: -1px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.home-header p {
+  font-size: clamp(14px, 3vw, 18px);
+  opacity: 0.85;
+  margin-top: 6px;
+}
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  width: 100%;
+  max-width: 700px;
+  flex-shrink: 0;
+}
+
+.game-card {
+  background: white;
+  border-radius: 16px;
+  padding: 18px 20px;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  transition: transform 0.15s, box-shadow 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  user-select: none;
+}
+
+.game-card:active { transform: scale(0.97); box-shadow: var(--shadow); }
+
+.game-card-icon {
+  width: 50px; height: 50px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.game-card-text h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.game-card-text p {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+.icon-1 { background: #DBEAFE; }
+.icon-2 { background: #D1FAE5; }
+.icon-3 { background: #FEF3C7; }
+.icon-4 { background: #FCE7F3; }
+.icon-5 { background: #EDE9FE; }
+.icon-6 { background: #FFEDD5; }
+
+/* ============================================================
+   GAME SCREEN LAYOUT
+   ============================================================ */
+#game-screen {
+  flex-direction: column;
+}
+
+/* Portrait: top=main, bottom=input */
+@media (orientation: portrait) {
+  #game-screen { flex-direction: column; }
+  #main-panel { flex: 1; min-height: 0; overflow: hidden; }
+  #input-panel { height: auto; flex-shrink: 0; }
+}
+
+/* Landscape: left=main, right=input */
+@media (orientation: landscape) {
+  #game-screen { flex-direction: row; }
+  #main-panel { flex: 1; min-width: 0; overflow: hidden; }
+  #input-panel { width: auto; flex-shrink: 0; }
+}
+
+#main-panel {
+  display: flex;
+  flex-direction: column;
+  background: #F8FAFF;
+  position: relative;
+}
+
+#input-panel {
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+  border-top: 2px solid var(--border);
+  padding: 10px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+@media (orientation: landscape) {
+  #input-panel {
+    border-top: none;
+    border-left: 2px solid var(--border);
+    padding: 12px;
+    min-width: 220px;
+    max-width: 260px;
+  }
+}
+
+/* ============================================================
+   GAME HEADER (inside main panel)
+   ============================================================ */
+.game-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.btn-back {
+  background: var(--neutral-light);
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text);
+  display: flex; align-items: center; gap: 4px;
+  white-space: nowrap;
+}
+
+.btn-back:active { background: var(--border); }
+
+.game-title {
+  font-size: clamp(13px, 2.5vw, 17px);
+  font-weight: 700;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-stats {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.stat-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--neutral-light);
+  border-radius: 8px;
+  padding: 4px 10px;
+  min-width: 50px;
+}
+
+.stat-badge .stat-val {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-badge .stat-lbl {
+  font-size: 9px;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ============================================================
+   GAME CONTENT AREA
+   ============================================================ */
+.game-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================================
+   MULTIPLICATION GRID (Game 1)
+   ============================================================ */
+.mult-grid-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.mult-grid {
+  display: grid;
+  grid-template-columns: repeat(9, var(--cell-size));
+  grid-template-rows: repeat(9, var(--cell-size));
+  gap: 3px;
+  user-select: none;
+}
+
+.grid-cell {
+  width: var(--cell-size);
+  height: var(--cell-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-size: clamp(10px, 2vw, 15px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.08s;
+  position: relative;
+  border: 2px solid transparent;
+}
+
+.grid-cell.header {
+  background: var(--primary);
+  color: white;
+  cursor: default;
+  font-size: clamp(11px, 2.2vw, 16px);
+}
+
+.grid-cell.open {
+  background: white;
+  border-color: var(--border);
+}
+
+.grid-cell.open:active { transform: scale(0.9); background: var(--primary-light); }
+
+.grid-cell.selected {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+.grid-cell.closed {
+  background: var(--correct-light);
+  border-color: var(--correct);
+  color: var(--correct);
+  cursor: default;
+}
+
+.grid-cell.error-flash {
+  background: var(--error-light) !important;
+  border-color: var(--error) !important;
+  color: var(--error) !important;
+  animation: shake 0.4s ease;
+}
+
+.grid-cell.corner {
+  background: transparent;
+  cursor: default;
+  color: var(--primary);
+  font-size: clamp(14px, 3vw, 20px);
+  font-weight: 800;
+}
+
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+/* ============================================================
+   FACTORS GRID (Game 2 & 3)
+   ============================================================ */
+.factors-grid-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 8px;
+  padding: 4px;
+}
+
+.factors-info {
+  font-size: clamp(13px, 2.5vw, 17px);
+  font-weight: 600;
+  color: var(--text-light);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.factors-info strong {
+  color: var(--primary);
+  font-size: clamp(16px, 3.5vw, 24px);
+}
+
+.factors-grid {
+  display: grid;
+  gap: 5px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.factor-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-size: clamp(11px, 2.2vw, 16px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.08s, border-color 0.12s;
+  border: 2px solid var(--border);
+  background: white;
+  color: var(--text);
+}
+
+.factor-cell:active { transform: scale(0.9); }
+
+.factor-cell.selected {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.factor-cell.closed {
+  background: var(--correct-light);
+  border-color: var(--correct);
+  color: var(--correct);
+  cursor: default;
+}
+
+.factor-cell.error-flash {
+  background: var(--error-light) !important;
+  border-color: var(--error) !important;
+  color: var(--error) !important;
+  animation: shake 0.4s ease;
+}
+
+/* ============================================================
+   FLASH CARD (Game 4 & 5)
+   ============================================================ */
+.flashcard-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 16px;
+  padding: 12px;
+}
+
+.flashcard {
+  background: white;
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+  padding: 28px 36px;
+  text-align: center;
+  min-width: 200px;
+  max-width: 360px;
+  width: 90%;
+  transition: background 0.25s;
+}
+
+.flashcard.correct-flash {
+  background: var(--correct-light);
+  animation: pulse-correct 0.35s ease;
+}
+
+.flashcard.error-flash {
+  background: var(--error-light);
+  animation: shake 0.4s ease;
+}
+
+@keyframes pulse-correct {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+.flashcard-problem {
+  font-size: clamp(30px, 9vw, 60px);
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -1px;
+  line-height: 1.1;
+}
+
+.flashcard-answer {
+  font-size: clamp(18px, 4.5vw, 32px);
+  font-weight: 700;
+  margin-top: 10px;
+  min-height: 38px;
+  line-height: 1.2;
+}
+
+.flashcard-progress {
+  font-size: 13px;
+  color: var(--text-light);
+  margin-top: 10px;
+}
+
+.progress-bar-wrap {
+  width: 90%;
+  max-width: 360px;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+/* ============================================================
+   EQUIVALENCE GAME (Game 6)
+   ============================================================ */
+.equiv-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
+  gap: 10px;
+  padding: 10px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.equiv-target {
+  background: white;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 14px 28px;
+  text-align: center;
+  font-size: clamp(22px, 6vw, 40px);
+  font-weight: 800;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.equiv-instruction {
+  font-size: clamp(12px, 2.5vw, 15px);
+  color: var(--text-light);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.equiv-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.equiv-choice {
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 6px;
+  text-align: center;
+  font-size: clamp(13px, 2.8vw, 17px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+  user-select: none;
+}
+
+.equiv-choice:active { transform: scale(0.94); }
+
+.equiv-choice.selected {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.equiv-choice.correct {
+  background: var(--correct-light);
+  border-color: var(--correct);
+  color: var(--correct);
+}
+
+.equiv-choice.wrong {
+  background: var(--error-light);
+  border-color: var(--error);
+  color: var(--error);
+  animation: shake 0.4s ease;
+}
+
+.equiv-choice.missed {
+  background: var(--warning-light);
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.equiv-round-info {
+  font-size: 12px;
+  color: var(--text-light);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   KEYPAD
+   ============================================================ */
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, var(--keypad-btn-size));
+  gap: 7px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.keypad-btn {
+  width: var(--keypad-btn-size);
+  height: var(--keypad-btn-size);
+  border-radius: var(--radius);
+  border: none;
+  font-size: clamp(18px, 4vw, 26px);
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.08s, background 0.08s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  -webkit-user-select: none;
+}
+
+.keypad-btn:active { transform: scale(0.88); }
+
+.keypad-btn.num {
+  background: white;
+  color: var(--text);
+  border: 2px solid var(--border);
+}
+
+.keypad-btn.num:active { background: var(--neutral-light); }
+
+.keypad-btn.action-del {
+  background: var(--warning-light);
+  color: var(--warning);
+  border: 2px solid #FCD34D;
+  font-size: clamp(14px, 3vw, 20px);
+}
+
+.keypad-btn.action-enter {
+  background: var(--primary);
+  color: white;
+  border: 2px solid var(--primary-dark);
+  font-size: clamp(12px, 2.2vw, 16px);
+  grid-column: span 2;
+  width: calc(var(--keypad-btn-size) * 2 + 7px);
+}
+
+.keypad-btn.action-enter:active { background: var(--primary-dark); }
+
+/* Factor keypad (Game 2/3) */
+.factor-keypad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+  width: 100%;
+  max-width: 300px;
+  flex-shrink: 0;
+}
+
+.factor-keypad-btn {
+  aspect-ratio: 1;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  background: white;
+  font-size: clamp(15px, 3.5vw, 22px);
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.factor-keypad-btn:active { transform: scale(0.88); }
+
+.factor-keypad-btn.selected {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary-dark);
+}
+
+.factor-keypad-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ============================================================
+   DISPLAY INPUT (shows typed number)
+   ============================================================ */
+.input-display {
+  background: var(--neutral-light);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font-size: clamp(22px, 5vw, 32px);
+  font-weight: 800;
+  text-align: center;
+  min-width: 100px;
+  min-height: 50px;
+  color: var(--text);
+  letter-spacing: 3px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.input-display.has-value {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+/* ============================================================
+   RESULTS SCREEN
+   ============================================================ */
+#results-screen {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.results-card {
+  background: white;
+  border-radius: 24px;
+  padding: 28px 24px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.results-emoji {
+  font-size: 52px;
+  margin-bottom: 10px;
+}
+
+.results-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.results-subtitle {
+  font-size: 14px;
+  color: var(--text-light);
+  margin-bottom: 20px;
+}
+
+.results-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.result-stat {
+  background: var(--neutral-light);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.result-stat .val {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.result-stat .lbl {
+  font-size: 11px;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.result-stat.full-width {
+  grid-column: span 2;
+}
+
+.results-btns {
+  display: flex;
+  gap: 10px;
+  flex-direction: column;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.08s;
+  box-shadow: var(--shadow);
+}
+
+.btn-primary:active { background: var(--primary-dark); transform: scale(0.97); }
+
+.btn-secondary {
+  background: var(--neutral-light);
+  color: var(--text);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.08s;
+}
+
+.btn-secondary:active { background: var(--border); transform: scale(0.97); }
+
+/* ============================================================
+   OVERLAY / MODAL
+   ============================================================ */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.overlay.hidden { display: none; }
+
+.modal {
+  background: white;
+  border-radius: 20px;
+  padding: 28px 24px;
+  max-width: 340px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.modal h2 { font-size: 20px; font-weight: 800; margin-bottom: 10px; }
+.modal p { font-size: 14px; color: var(--text-light); margin-bottom: 20px; line-height: 1.5; }
+.modal-btns { display: flex; gap: 10px; }
+.modal-btns button { flex: 1; }
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+.hidden { display: none !important; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ============================================================
+   FACTOR ENTER BUTTON (in input panel)
+   ============================================================ */
+.factor-enter-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: background 0.12s, transform 0.08s;
+  width: 100%;
+  max-width: 300px;
+  flex-shrink: 0;
+}
+
+.factor-enter-btn:active { background: var(--primary-dark); transform: scale(0.97); }
+
+/* ============================================================
+   GAME 1 SELECTED INDICATOR
+   ============================================================ */
+.selected-indicator {
+  font-size: clamp(13px, 2.5vw, 16px);
+  color: var(--text-light);
+  text-align: center;
+  min-height: 24px;
+  flex-shrink: 0;
+}
+
+.selected-indicator strong {
+  color: var(--primary);
+  font-size: clamp(15px, 3vw, 20px);
+}
+
+/* ============================================================
+   EQUIV SUBMIT BUTTON
+   ============================================================ */
+.equiv-submit-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 14px 28px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: background 0.12s, transform 0.08s;
+  width: 100%;
+  max-width: 300px;
+  flex-shrink: 0;
+}
+
+.equiv-submit-btn:active { background: var(--primary-dark); transform: scale(0.97); }
+
+.equiv-score-display {
+  font-size: 14px;
+  color: var(--text-light);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   RESPONSIVE TWEAKS
+   ============================================================ */
+@media (max-width: 380px) {
+  :root {
+    --cell-size: min(8.5vw, 8.5vh, 44px);
+    --keypad-btn-size: min(17vw, 13vh, 64px);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --cell-size: min(7vw, 8.5vh, 46px);
+    --keypad-btn-size: min(11vw, 13vh, 58px);
+  }
+  .game-header { padding: 4px 10px; }
+  .stat-badge { padding: 2px 8px; }
+  .stat-badge .stat-val { font-size: 13px; }
+  .flashcard { padding: 16px 24px; }
+  .flashcard-problem { font-size: clamp(24px, 7vw, 44px); }
+}
+
+/* ============================================================
+   COMPLETION ANIMATION
+   ============================================================ */
+@keyframes celebrate {
+  0% { transform: scale(0.8) rotate(-4deg); opacity: 0; }
+  60% { transform: scale(1.05) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.celebrate { animation: celebrate 0.5s ease forwards; }
+
+/* ============================================================
+   AUTO-FACTOR DISPLAY (Game 3)
+   ============================================================ */
+.auto-factor-display {
+  font-size: clamp(32px, 8vw, 56px);
+  font-weight: 900;
+  color: var(--primary);
+  text-align: center;
+  background: var(--primary-light);
+  border-radius: 16px;
+  padding: 12px 28px;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 300px;
+}
+
+.auto-factor-label {
+  font-size: 12px;
+  color: var(--text-light);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     HOME SCREEN
+     ============================================================ -->
+<div id="home-screen" class="screen active">
+  <div class="home-header">
+    <h1>🧮 Math Facts</h1>
+    <p>Choose a game to practice</p>
+  </div>
+  <div class="game-grid">
+    <div class="game-card" onclick="App.startGame(1)">
+      <div class="game-card-icon icon-1">✖️</div>
+      <div class="game-card-text">
+        <h3>Multiplication Grid</h3>
+        <p>Fill in the 2–9 times table grid. Close all boxes to win!</p>
+      </div>
+    </div>
+    <div class="game-card" onclick="App.startGame(2)">
+      <div class="game-card-icon icon-2">🔢</div>
+      <div class="game-card-text">
+        <h3>Factor Hunt</h3>
+        <p>Pick a factor, then find all its multiples in the grid.</p>
+      </div>
+    </div>
+    <div class="game-card" onclick="App.startGame(3)">
+      <div class="game-card-icon icon-3">🎯</div>
+      <div class="game-card-text">
+        <h3>Factor Hunt (Auto)</h3>
+        <p>Like Factor Hunt, but the factor is chosen for you!</p>
+      </div>
+    </div>
+    <div class="game-card" onclick="App.startGame(4)">
+      <div class="game-card-icon icon-4">⚡</div>
+      <div class="game-card-text">
+        <h3>Multiplication Flash Cards</h3>
+        <p>Race through all 2–9 multiplication facts. Beat your time!</p>
+      </div>
+    </div>
+    <div class="game-card" onclick="App.startGame(5)">
+      <div class="game-card-icon icon-5">➗</div>
+      <div class="game-card-text">
+        <h3>Division Flash Cards</h3>
+        <p>Division facts from the 2–9 times tables. How fast can you go?</p>
+      </div>
+    </div>
+    <div class="game-card" onclick="App.startGame(6)">
+      <div class="game-card-icon icon-6">🟰</div>
+      <div class="game-card-text">
+        <h3>Equivalence Challenge</h3>
+        <p>Find all fractions, decimals &amp; percentages that match the target.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     GAME SCREEN
+     ============================================================ -->
+<div id="game-screen" class="screen">
+  <div id="main-panel">
+    <div class="game-header">
+      <button class="btn-back" onclick="App.confirmBack()">← Back</button>
+      <div class="game-title" id="game-title">Game</div>
+      <div class="game-stats">
+        <div class="stat-badge">
+          <span class="stat-val" id="timer-display">0:00</span>
+          <span class="stat-lbl">Time</span>
+        </div>
+        <div class="stat-badge">
+          <span class="stat-val" id="error-display">0</span>
+          <span class="stat-lbl">Errors</span>
+        </div>
+      </div>
+    </div>
+    <div class="game-content" id="game-content"></div>
+  </div>
+  <div id="input-panel"></div>
+</div>
+
+<!-- ============================================================
+     RESULTS SCREEN
+     ============================================================ -->
+<div id="results-screen" class="screen">
+  <div class="results-card" id="results-card">
+    <div class="results-emoji" id="results-emoji">🎉</div>
+    <div class="results-title" id="results-title">Complete!</div>
+    <div class="results-subtitle" id="results-subtitle">Great job!</div>
+    <div class="results-stats" id="results-stats"></div>
+    <div class="results-btns">
+      <button class="btn-primary" onclick="App.playAgain()">Play Again</button>
+      <button class="btn-secondary" onclick="App.goHome()">Home</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     OVERLAY / MODAL
+     ============================================================ -->
+<div class="overlay hidden" id="overlay">
+  <div class="modal">
+    <h2 id="modal-title">Exit Game?</h2>
+    <p id="modal-body">Your progress will be lost.</p>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="App.closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="App.confirmModalAction()">Yes, Exit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   CONSTANTS
+   ============================================================ */
+const NUMS = [2,3,4,5,6,7,8,9];
+
+/* ============================================================
+   UTILITY FUNCTIONS
+   ============================================================ */
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function formatTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+}
+
+function formatTimeDetailed(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  if (m > 0) return `${m}m ${sec}s`;
+  const tenths = Math.floor((ms % 1000) / 100);
+  return `${sec}.${tenths}s`;
+}
+
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
+/* ============================================================
+   TIMER
+   ============================================================ */
+const Timer = {
+  startTime: 0,
+  elapsed: 0,
+  running: false,
+  intervalId: null,
+
+  start() {
+    this.startTime = Date.now() - this.elapsed;
+    this.running = true;
+    this.intervalId = setInterval(() => this.tick(), 200);
+  },
+
+  stop() {
+    if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+    if (this.running) this.elapsed = Date.now() - this.startTime;
+    this.running = false;
+  },
+
+  reset() {
+    this.stop();
+    this.elapsed = 0;
+    this.startTime = 0;
+    const el = document.getElementById('timer-display');
+    if (el) el.textContent = '0:00';
+  },
+
+  getElapsed() {
+    if (this.running) return Date.now() - this.startTime;
+    return this.elapsed;
+  },
+
+  tick() {
+    const el = document.getElementById('timer-display');
+    if (el) el.textContent = formatTime(this.getElapsed());
+  }
+};
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const State = {
+  currentGame: 0,
+  errors: 0,
+
+  reset() {
+    this.errors = 0;
+    Timer.reset();
+    const ed = document.getElementById('error-display');
+    if (ed) ed.textContent = '0';
+  },
+
+  addError() {
+    this.errors++;
+    const ed = document.getElementById('error-display');
+    if (ed) ed.textContent = this.errors;
+  }
+};
+
+/* ============================================================
+   APP CONTROLLER
+   ============================================================ */
+const App = {
+  currentGameObj: null,
+  modalAction: null,
+
+  showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => {
+      s.classList.remove('active');
+    });
+    const target = document.getElementById(id);
+    if (target) target.classList.add('active');
+  },
+
+  startGame(num) {
+    State.currentGame = num;
+    State.reset();
+
+    const titles = {
+      1: 'Multiplication Grid',
+      2: 'Factor Hunt',
+      3: 'Factor Hunt (Auto)',
+      4: 'Multiplication Flash Cards',
+      5: 'Division Flash Cards',
+      6: 'Equivalence Challenge'
+    };
+    document.getElementById('game-title').textContent = titles[num] || 'Game';
+
+    // Clear panels
+    document.getElementById('game-content').innerHTML = '';
+    document.getElementById('input-panel').innerHTML = '';
+
+    this.showScreen('game-screen');
+
+    const games = { 1: Game1, 2: Game2, 3: Game3, 4: Game4, 5: Game5, 6: Game6 };
+    this.currentGameObj = games[num];
+    this.currentGameObj.init();
+  },
+
+  playAgain() {
+    this.startGame(State.currentGame);
+  },
+
+  goHome() {
+    Timer.stop();
+    if (this.currentGameObj && this.currentGameObj.cleanup) {
+      this.currentGameObj.cleanup();
+    }
+    this.currentGameObj = null;
+    this.showScreen('home-screen');
+  },
+
+  confirmBack() {
+    this.showModal('Exit Game?', 'Your progress will be lost.', () => this.goHome());
+  },
+
+  showModal(title, body, action) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').textContent = body;
+    this.modalAction = action;
+    document.getElementById('overlay').classList.remove('hidden');
+  },
+
+  closeModal() {
+    document.getElementById('overlay').classList.add('hidden');
+    this.modalAction = null;
+  },
+
+  confirmModalAction() {
+    const action = this.modalAction;
+    this.closeModal();
+    if (action) action();
+  },
+
+  showResults(data) {
+    Timer.stop();
+    const elapsed = Timer.getElapsed();
+
+    let rating = 'ok';
+    if (State.errors === 0) rating = 'perfect';
+    else if (State.errors <= 2) rating = 'great';
+    else if (State.errors <= 5) rating = 'good';
+
+    const emojis = { perfect: '🏆', great: '⭐', good: '👍', ok: '😊' };
+    document.getElementById('results-emoji').textContent = emojis[rating];
+    document.getElementById('results-title').textContent = data.title || 'Complete!';
+    document.getElementById('results-subtitle').textContent =
+      State.errors === 0 ? 'Perfect — no mistakes!' :
+      State.errors === 1 ? 'Just 1 mistake — great job!' :
+      `${State.errors} mistakes — keep practicing!`;
+
+    document.getElementById('results-stats').innerHTML = `
+      <div class="result-stat">
+        <div class="val">${formatTimeDetailed(elapsed)}</div>
+        <div class="lbl">Time</div>
+      </div>
+      <div class="result-stat">
+        <div class="val">${State.errors}</div>
+        <div class="lbl">Errors</div>
+      </div>
+      ${data.extra || ''}
+    `;
+
+    const card = document.getElementById('results-card');
+    card.classList.remove('celebrate');
+    void card.offsetWidth; // reflow
+    card.classList.add('celebrate');
+
+    this.showScreen('results-screen');
+  }
+};
+
+/* ============================================================
+   KEYPAD BUILDER
+   ============================================================ */
+function buildNumericKeypad(onDigit, onDelete, onEnter) {
+  const keypad = document.createElement('div');
+  keypad.className = 'keypad';
+
+  [7,8,9, 4,5,6, 1,2,3].forEach(k => {
+    const btn = document.createElement('button');
+    btn.className = 'keypad-btn num';
+    btn.textContent = k;
+    btn.addEventListener('click', () => onDigit(k));
+    keypad.appendChild(btn);
+  });
+
+  const btn0 = document.createElement('button');
+  btn0.className = 'keypad-btn num';
+  btn0.textContent = '0';
+  btn0.addEventListener('click', () => onDigit(0));
+  keypad.appendChild(btn0);
+
+  const btnDel = document.createElement('button');
+  btnDel.className = 'keypad-btn action-del';
+  btnDel.textContent = '⌫';
+  btnDel.addEventListener('click', onDelete);
+  keypad.appendChild(btnDel);
+
+  const btnEnter = document.createElement('button');
+  btnEnter.className = 'keypad-btn action-enter';
+  btnEnter.textContent = 'Enter ✓';
+  btnEnter.addEventListener('click', onEnter);
+  keypad.appendChild(btnEnter);
+
+  return keypad;
+}
+
+/* ============================================================
+   GAME 1 — MULTIPLICATION GRID
+   ============================================================ */
+const Game1 = {
+  selectedCell: null,
+  inputVal: '',
+  cells: {},
+  closedCount: 0,
+  totalCells: 64,
+  locked: false,
+
+  init() {
+    this.selectedCell = null;
+    this.inputVal = '';
+    this.cells = {};
+    this.closedCount = 0;
+    this.locked = false;
+    this.buildGrid();
+    this.buildInputPanel();
+    Timer.start();
+  },
+
+  buildGrid() {
+    const content = document.getElementById('game-content');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'mult-grid-wrapper';
+
+    const grid = document.createElement('div');
+    grid.className = 'mult-grid';
+
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell';
+
+        if (r === 0 && c === 0) {
+          cell.classList.add('corner');
+          cell.textContent = '×';
+        } else if (r === 0) {
+          cell.classList.add('header');
+          cell.textContent = NUMS[c - 1];
+        } else if (c === 0) {
+          cell.classList.add('header');
+          cell.textContent = NUMS[r - 1];
+        } else {
+          const row = NUMS[r - 1];
+          const col = NUMS[c - 1];
+          const key = `${row},${col}`;
+          cell.classList.add('open');
+          cell.dataset.row = row;
+          cell.dataset.col = col;
+          cell.addEventListener('click', () => this.selectCell(row, col));
+          this.cells[key] = { el: cell, closed: false };
+        }
+        grid.appendChild(cell);
+      }
+    }
+
+    wrapper.appendChild(grid);
+    content.appendChild(wrapper);
+  },
+
+  buildInputPanel() {
+    const panel = document.getElementById('input-panel');
+
+    const indicator = document.createElement('div');
+    indicator.className = 'selected-indicator';
+    indicator.id = 'g1-indicator';
+    indicator.textContent = 'Tap a cell to select';
+    panel.appendChild(indicator);
+
+    const display = document.createElement('div');
+    display.className = 'input-display';
+    display.id = 'g1-display';
+    panel.appendChild(display);
+
+    panel.appendChild(buildNumericKeypad(
+      d => this.onDigit(d),
+      () => this.onDelete(),
+      () => this.onEnter()
+    ));
+  },
+
+  selectCell(row, col) {
+    if (this.locked) return;
+    const key = `${row},${col}`;
+    const cellData = this.cells[key];
+    if (!cellData || cellData.closed) return;
+
+    if (this.selectedCell) {
+      const prevKey = `${this.selectedCell.row},${this.selectedCell.col}`;
+      const prev = this.cells[prevKey];
+      if (prev && !prev.closed) {
+        prev.el.classList.remove('selected');
+        prev.el.classList.add('open');
+      }
+    }
+
+    this.selectedCell = { row, col };
+    this.inputVal = '';
+    this.updateDisplay();
+
+    cellData.el.classList.remove('open');
+    cellData.el.classList.add('selected');
+
+    const ind = document.getElementById('g1-indicator');
+    if (ind) ind.innerHTML = `<strong>${row} × ${col}</strong> = ?`;
+  },
+
+  onDigit(d) {
+    if (this.locked || !this.selectedCell) return;
+    if (this.inputVal.length >= 3) return;
+    this.inputVal += d;
+    this.updateDisplay();
+  },
+
+  onDelete() {
+    if (this.locked || !this.selectedCell) return;
+    this.inputVal = this.inputVal.slice(0, -1);
+    this.updateDisplay();
+  },
+
+  updateDisplay() {
+    const display = document.getElementById('g1-display');
+    if (!display) return;
+    display.textContent = this.inputVal;
+    display.className = 'input-display' + (this.inputVal ? ' has-value' : '');
+  },
+
+  onEnter() {
+    if (this.locked || !this.selectedCell || !this.inputVal) return;
+
+    const { row, col } = this.selectedCell;
+    const correct = row * col;
+    const answer = parseInt(this.inputVal, 10);
+
+    if (answer === correct) {
+      this.closeCell(row, col);
+      if (row !== col) {
+        const symKey = `${col},${row}`;
+        if (this.cells[symKey] && !this.cells[symKey].closed) {
+          this.closeCell(col, row);
+        }
+      }
+      this.selectedCell = null;
+      this.inputVal = '';
+      this.updateDisplay();
+      const ind = document.getElementById('g1-indicator');
+      if (ind) ind.textContent = 'Tap a cell to select';
+
+      if (this.closedCount >= this.totalCells) {
+        setTimeout(() => this.finish(), 300);
+      }
+    } else {
+      State.addError();
+      this.locked = true;
+      const key = `${row},${col}`;
+      const cellData = this.cells[key];
+      cellData.el.classList.remove('selected');
+      cellData.el.classList.add('error-flash');
+      cellData.el.textContent = answer;
+
+      setTimeout(() => {
+        cellData.el.classList.remove('error-flash');
+        cellData.el.classList.add('selected');
+        cellData.el.textContent = '';
+        this.inputVal = '';
+        this.updateDisplay();
+        this.locked = false;
+      }, 1000);
+    }
+  },
+
+  closeCell(row, col) {
+    const key = `${row},${col}`;
+    const cellData = this.cells[key];
+    if (!cellData || cellData.closed) return;
+    cellData.closed = true;
+    cellData.el.classList.remove('open', 'selected');
+    cellData.el.classList.add('closed');
+    cellData.el.textContent = row * col;
+    this.closedCount++;
+  },
+
+  finish() {
+    App.showResults({ title: 'Grid Complete! 🎉' });
+  },
+
+  cleanup() {}
+};
+
+/* ============================================================
+   GAME 2 — FACTOR HUNT (base, used by Game3 too)
+   ============================================================ */
+function createFactorHuntGame(autoFactor) {
+  return {
+    selectedFactor: null,
+    selectedMultiples: [],
+    multiples: [],
+    closedCount: 0,
+    totalMultiples: 0,
+    locked: false,
+    autoFactor: autoFactor,
+
+    init() {
+      this.selectedFactor = null;
+      this.selectedMultiples = [];
+      this.multiples = [];
+      this.closedCount = 0;
+      this.locked = false;
+      this.buildGame();
+      this.buildInputPanel();
+      Timer.start();
+    },
+
+    buildGame() {
+      // 64 cells: each factor 2-9 has 8 multiples (2-9 × factor)
+      const allMultiples = [];
+      for (const f of NUMS) {
+        for (const m of NUMS) {
+          allMultiples.push({ value: f * m, factor: f, multiplier: m, el: null, closed: false, selected: false });
+        }
+      }
+      this.multiples = shuffle(allMultiples);
+      this.totalMultiples = this.multiples.length;
+
+      const content = document.getElementById('game-content');
+      const wrapper = document.createElement('div');
+      wrapper.className = 'factors-grid-wrapper';
+
+      const info = document.createElement('div');
+      info.className = 'factors-info';
+      info.id = 'g2-info';
+      info.textContent = this.autoFactor ? 'Loading...' : 'Select a factor, then tap its multiples';
+      wrapper.appendChild(info);
+
+      // Build grid: 8 columns × 8 rows = 64 cells
+      const COLS = 8;
+      const grid = document.createElement('div');
+      grid.className = 'factors-grid';
+      grid.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+
+      // Size cells to fit available space
+      const cellPx = 'min(10vw, 9vh, 54px)';
+
+      this.multiples.forEach((m, i) => {
+        const cell = document.createElement('div');
+        cell.className = 'factor-cell';
+        cell.style.width = cellPx;
+        cell.style.height = cellPx;
+        cell.textContent = m.value;
+        cell.addEventListener('click', () => this.toggleMultiple(i));
+        m.el = cell;
+        grid.appendChild(cell);
+      });
+
+      wrapper.appendChild(grid);
+      content.appendChild(wrapper);
+    },
+
+    buildInputPanel() {
+      const panel = document.getElementById('input-panel');
+
+      if (this.autoFactor) {
+        const label = document.createElement('div');
+        label.className = 'auto-factor-label';
+        label.textContent = 'Find all multiples of:';
+        panel.appendChild(label);
+
+        const display = document.createElement('div');
+        display.className = 'auto-factor-display';
+        display.id = 'g3-factor-display';
+        display.textContent = '?';
+        panel.appendChild(display);
+      } else {
+        const label = document.createElement('div');
+        label.style.cssText = 'font-size:12px;color:var(--text-light);text-align:center;flex-shrink:0;';
+        label.textContent = 'Choose a factor:';
+        panel.appendChild(label);
+
+        const factorGrid = document.createElement('div');
+        factorGrid.className = 'factor-keypad';
+        factorGrid.id = 'g2-factor-keypad';
+
+        NUMS.forEach(f => {
+          const btn = document.createElement('button');
+          btn.className = 'factor-keypad-btn';
+          btn.textContent = f;
+          btn.dataset.factor = f;
+          btn.addEventListener('click', () => this.selectFactor(f));
+          factorGrid.appendChild(btn);
+        });
+        panel.appendChild(factorGrid);
+      }
+
+      const enterBtn = document.createElement('button');
+      enterBtn.className = 'factor-enter-btn';
+      enterBtn.textContent = 'Enter ✓';
+      enterBtn.addEventListener('click', () => this.onEnter());
+      panel.appendChild(enterBtn);
+
+      if (this.autoFactor) {
+        setTimeout(() => this.autoSelectNextFactor(), 100);
+      }
+    },
+
+    autoSelectNextFactor() {
+      const remaining = NUMS.filter(f =>
+        this.multiples.some(m => m.factor === f && !m.closed)
+      );
+      if (remaining.length === 0) {
+        this.finish();
+        return;
+      }
+      const f = remaining[Math.floor(Math.random() * remaining.length)];
+      this.selectFactor(f);
+    },
+
+    selectFactor(f) {
+      // Clear previous selections
+      this.selectedMultiples.forEach(i => {
+        const m = this.multiples[i];
+        if (m && !m.closed) {
+          m.el.classList.remove('selected');
+          m.selected = false;
+        }
+      });
+      this.selectedMultiples = [];
+
+      // Update factor button UI
+      document.querySelectorAll('.factor-keypad-btn').forEach(btn => btn.classList.remove('selected'));
+      const btn = document.querySelector(`.factor-keypad-btn[data-factor="${f}"]`);
+      if (btn) btn.classList.add('selected');
+
+      // Update auto-factor display
+      const autoDisplay = document.getElementById('g3-factor-display');
+      if (autoDisplay) autoDisplay.textContent = f;
+
+      this.selectedFactor = f;
+
+      const count = this.multiples.filter(m => m.factor === f && !m.closed).length;
+      const info = document.getElementById('g2-info');
+      if (info) info.innerHTML = `Find all multiples of <strong>${f}</strong> &nbsp;(${count} remaining)`;
+    },
+
+    toggleMultiple(i) {
+      if (this.locked || this.selectedFactor === null) return;
+      const m = this.multiples[i];
+      if (!m || m.closed) return;
+
+      if (m.selected) {
+        m.selected = false;
+        m.el.classList.remove('selected');
+        this.selectedMultiples = this.selectedMultiples.filter(x => x !== i);
+      } else {
+        m.selected = true;
+        m.el.classList.add('selected');
+        this.selectedMultiples.push(i);
+      }
+    },
+
+    onEnter() {
+      if (this.locked || this.selectedFactor === null || this.selectedMultiples.length === 0) return;
+
+      const f = this.selectedFactor;
+
+      // Check for wrong selections (cells that don't belong to this factor)
+      const wrongOnes = this.selectedMultiples.filter(i => this.multiples[i].factor !== f);
+      if (wrongOnes.length > 0) {
+        State.addError();
+        this.locked = true;
+        wrongOnes.forEach(i => {
+          const m = this.multiples[i];
+          m.el.classList.remove('selected');
+          m.el.classList.add('error-flash');
+          m.selected = false;
+          setTimeout(() => m.el.classList.remove('error-flash'), 900);
+        });
+        this.selectedMultiples = this.selectedMultiples.filter(i => this.multiples[i].factor === f);
+        setTimeout(() => { this.locked = false; }, 950);
+        return;
+      }
+
+      // Check if all multiples of this factor are selected
+      const allOfFactor = this.multiples.filter(m => m.factor === f && !m.closed);
+      const selectedOfFactor = this.selectedMultiples.filter(i => this.multiples[i].factor === f);
+
+      if (selectedOfFactor.length < allOfFactor.length) {
+        // Missing some — flash the unselected ones
+        State.addError();
+        this.locked = true;
+        allOfFactor.forEach(m => {
+          if (!m.selected) {
+            m.el.classList.add('error-flash');
+            setTimeout(() => m.el.classList.remove('error-flash'), 900);
+          }
+        });
+        setTimeout(() => { this.locked = false; }, 950);
+        return;
+      }
+
+      // All correct! Close them
+      this.selectedMultiples.forEach(i => {
+        const m = this.multiples[i];
+        m.closed = true;
+        m.selected = false;
+        m.el.classList.remove('selected');
+        m.el.classList.add('closed');
+        this.closedCount++;
+      });
+      this.selectedMultiples = [];
+
+      // Disable factor button if done
+      if (!this.autoFactor) {
+        const remaining = this.multiples.filter(m => m.factor === f && !m.closed).length;
+        const btn = document.querySelector(`.factor-keypad-btn[data-factor="${f}"]`);
+        if (btn && remaining === 0) {
+          btn.disabled = true;
+        }
+      }
+
+      if (this.closedCount >= this.totalMultiples) {
+        setTimeout(() => this.finish(), 300);
+        return;
+      }
+
+      this.selectedFactor = null;
+      document.querySelectorAll('.factor-keypad-btn').forEach(b => b.classList.remove('selected'));
+
+      if (this.autoFactor) {
+        const info = document.getElementById('g2-info');
+        if (info) info.textContent = 'Great! Next factor coming...';
+        setTimeout(() => this.autoSelectNextFactor(), 500);
+      } else {
+        const info = document.getElementById('g2-info');
+        if (info) info.textContent = 'Select a factor, then tap its multiples';
+      }
+    },
+
+    finish() {
+      App.showResults({ title: this.autoFactor ? 'Factor Hunt (Auto) Complete! 🎉' : 'Factor Hunt Complete! 🎉' });
+    },
+
+    cleanup() {}
+  };
+}
+
+const Game2 = createFactorHuntGame(false);
+const Game3 = createFactorHuntGame(true);
+
+/* ============================================================
+   GAME 4 — MULTIPLICATION FLASH CARDS (base, used by Game5)
+   ============================================================ */
+function createFlashCardGame(isDivision) {
+  return {
+    questions: [],
+    currentIdx: 0,
+    inputVal: '',
+    locked: false,
+    totalQ: 0,
+    missedCount: 0,
+    isDivision: isDivision,
+
+    init() {
+      this.questions = [];
+      this.currentIdx = 0;
+      this.inputVal = '';
+      this.locked = false;
+      this.missedCount = 0;
+      this.buildQuestions();
+      this.buildUI();
+      Timer.start();
+    },
+
+    buildQuestions() {
+      const qs = [];
+      for (let i = 0; i < NUMS.length; i++) {
+        for (let j = i; j < NUMS.length; j++) {
+          const a = NUMS[i], b = NUMS[j];
+          if (a === b) {
+            qs.push({ a, b, answer: a * b });
+          } else {
+            qs.push({ a, b, answer: a * b });
+            qs.push({ a: b, b: a, answer: a * b });
+          }
+        }
+      }
+      this.questions = shuffle(qs);
+      this.totalQ = this.questions.length;
+      this.currentIdx = 0;
+    },
+
+    buildUI() {
+      const content = document.getElementById('game-content');
+      const wrapper = document.createElement('div');
+      wrapper.className = 'flashcard-wrapper';
+
+      const pbWrap = document.createElement('div');
+      pbWrap.className = 'progress-bar-wrap';
+      const pbFill = document.createElement('div');
+      pbFill.className = 'progress-bar-fill';
+      pbFill.id = 'g4-progress';
+      pbFill.style.width = '0%';
+      pbWrap.appendChild(pbFill);
+      wrapper.appendChild(pbWrap);
+
+      const card = document.createElement('div');
+      card.className = 'flashcard';
+      card.id = 'g4-card';
+
+      const problem = document.createElement('div');
+      problem.className = 'flashcard-problem';
+      problem.id = 'g4-problem';
+      card.appendChild(problem);
+
+      const answerEl = document.createElement('div');
+      answerEl.className = 'flashcard-answer';
+      answerEl.id = 'g4-answer';
+      card.appendChild(answerEl);
+
+      const countEl = document.createElement('div');
+      countEl.className = 'flashcard-progress';
+      countEl.id = 'g4-count';
+      card.appendChild(countEl);
+
+      wrapper.appendChild(card);
+      content.appendChild(wrapper);
+
+      const panel = document.getElementById('input-panel');
+      const display = document.createElement('div');
+      display.className = 'input-display';
+      display.id = 'g4-display';
+      panel.appendChild(display);
+
+      panel.appendChild(buildNumericKeypad(
+        d => this.onDigit(d),
+        () => this.onDelete(),
+        () => this.onEnter()
+      ));
+
+      this.showQuestion();
+    },
+
+    showQuestion() {
+      if (this.currentIdx >= this.questions.length) {
+        setTimeout(() => this.finish(), 300);
+        return;
+      }
+
+      const q = this.questions[this.currentIdx];
+      const problemEl = document.getElementById('g4-problem');
+      const answerEl = document.getElementById('g4-answer');
+      const countEl = document.getElementById('g4-count');
+      const progressEl = document.getElementById('g4-progress');
+
+      if (problemEl) {
+        problemEl.textContent = this.isDivision
+          ? `${q.answer} ÷ ${q.a} = ?`
+          : `${q.a} × ${q.b} = ?`;
+      }
+      if (answerEl) answerEl.textContent = '';
+      if (countEl) countEl.textContent = `${this.currentIdx + 1} of ${this.questions.length}`;
+
+      const done = this.totalQ - this.questions.length + this.currentIdx;
+      if (progressEl) progressEl.style.width = `${Math.max(0, (done / this.totalQ) * 100)}%`;
+
+      this.inputVal = '';
+      this.updateDisplay();
+    },
+
+    onDigit(d) {
+      if (this.locked) return;
+      if (this.inputVal.length >= 3) return;
+      this.inputVal += d;
+      this.updateDisplay();
+    },
+
+    onDelete() {
+      if (this.locked) return;
+      this.inputVal = this.inputVal.slice(0, -1);
+      this.updateDisplay();
+    },
+
+    updateDisplay() {
+      const display = document.getElementById('g4-display');
+      if (!display) return;
+      display.textContent = this.inputVal;
+      display.className = 'input-display' + (this.inputVal ? ' has-value' : '');
+    },
+
+    onEnter() {
+      if (this.locked || !this.inputVal) return;
+
+      const q = this.questions[this.currentIdx];
+      const answer = parseInt(this.inputVal, 10);
+      const card = document.getElementById('g4-card');
+      const answerEl = document.getElementById('g4-answer');
+
+      if (answer === (this.isDivision ? q.b : q.answer)) {
+        card.classList.add('correct-flash');
+        if (answerEl) {
+          answerEl.style.color = 'var(--correct)';
+          answerEl.textContent = '✓ ' + (this.isDivision ? q.b : q.answer);
+        }
+        this.locked = true;
+
+        setTimeout(() => {
+          card.classList.remove('correct-flash');
+          if (answerEl) { answerEl.textContent = ''; answerEl.style.color = ''; }
+          this.currentIdx++;
+          this.locked = false;
+          this.showQuestion();
+        }, 500);
+      } else {
+        State.addError();
+        this.missedCount++;
+        card.classList.add('error-flash');
+        const correctAns = this.isDivision ? q.b : q.answer;
+        if (answerEl) {
+          answerEl.style.color = 'var(--error)';
+          answerEl.textContent = `✗  Answer: ${correctAns}`;
+        }
+        this.locked = true;
+
+        // Move to end of queue
+        const missed = this.questions.splice(this.currentIdx, 1)[0];
+        this.questions.push(missed);
+
+        setTimeout(() => {
+          card.classList.remove('error-flash');
+          if (answerEl) { answerEl.textContent = ''; answerEl.style.color = ''; }
+          this.inputVal = '';
+          this.updateDisplay();
+          this.locked = false;
+          this.showQuestion();
+        }, 1500);
+      }
+    },
+
+    finish() {
+      App.showResults({
+        title: this.isDivision ? 'Division Complete! 🎉' : 'Flash Cards Complete! 🎉',
+        extra: `<div class="result-stat full-width">
+          <div class="val">${this.missedCount}</div>
+          <div class="lbl">Cards Repeated</div>
+        </div>`
+      });
+    },
+
+    cleanup() {}
+  };
+}
+
+const Game4 = createFlashCardGame(false);
+const Game5 = createFlashCardGame(true);
+
+/* ============================================================
+   GAME 6 — EQUIVALENCE CHALLENGE
+   ============================================================ */
+const Game6 = {
+  rounds: [],
+  currentRound: 0,
+  selectedChoices: new Set(),
+  locked: false,
+  totalRounds: 0,
+  roundErrors: 0,
+
+  init() {
+    this.selectedChoices = new Set();
+    this.locked = false;
+    this.roundErrors = 0;
+    this.currentRound = 0;
+    this.buildRounds();
+    this.buildUI();
+    Timer.start();
+  },
+
+  buildRounds() {
+    const allReps = this.generateRepresentations();
+    this.rounds = this.generateRounds(allReps);
+    this.totalRounds = this.rounds.length;
+  },
+
+  generateRepresentations() {
+    // Target values: multiples of 1/8 from 1/8 to 2
+    const targets = [];
+    for (let n = 1; n <= 16; n++) targets.push(n / 8);
+
+    const reps = {};
+    targets.forEach(t => { reps[t.toFixed(6)] = { val: t, forms: [] }; });
+
+    const key = t => t.toFixed(6);
+
+    // Fractions with denominators 1,2,3,4,5,6,8,10,12,16
+    const denoms = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16];
+    for (const d of denoms) {
+      for (let n = 1; n <= d * 2 + 1; n++) {
+        const val = n / d;
+        const k = key(val);
+        if (reps[k]) {
+          const g = gcd(n, d);
+          const sn = n / g, sd = d / g;
+          const rep = sd === 1 ? `${sn}` : `${sn}/${sd}`;
+          if (!reps[k].forms.includes(rep)) reps[k].forms.push(rep);
+        }
+      }
+    }
+
+    // Decimals — only add if the decimal representation is EXACT (parses back to same value)
+    targets.forEach(t => {
+      const k = key(t);
+      // Try 1, 2, 3 decimal places — only include if exact
+      for (let dp = 1; dp <= 3; dp++) {
+        const dStr = t.toFixed(dp);
+        if (Math.abs(parseFloat(dStr) - t) < 1e-9) {
+          const trimmed = dStr.replace(/\.?0+$/, '');
+          if (!reps[k].forms.includes(trimmed)) reps[k].forms.push(trimmed);
+        }
+      }
+    });
+
+    // Percentages
+    targets.forEach(t => {
+      const k = key(t);
+      const pct = t * 100;
+      const pctStr = Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(1)}%`;
+      if (!reps[k].forms.includes(pctStr)) reps[k].forms.push(pctStr);
+    });
+
+    return reps;
+  },
+
+  generateRounds(allReps) {
+    const rounds = [];
+    const keys = Object.keys(allReps);
+    const selected = shuffle(keys).slice(0, 10);
+
+    selected.forEach(k => {
+      const entry = allReps[k];
+      const target = entry.val;
+      const correctForms = entry.forms;
+
+      if (correctForms.length < 2) return;
+
+      // Wrong choices from other targets
+      const wrongPool = [];
+      keys.forEach(ok => {
+        if (ok !== k) {
+          allReps[ok].forms.forEach(f => {
+            if (!correctForms.includes(f)) wrongPool.push(f);
+          });
+        }
+      });
+
+      const correctChoices = shuffle(correctForms).slice(0, Math.min(5, correctForms.length));
+      const wrongChoices = shuffle(wrongPool).slice(0, Math.min(4, wrongPool.length));
+      const allChoices = shuffle([...correctChoices, ...wrongChoices]);
+
+      // Format target display
+      let targetDisplay;
+      if (Number.isInteger(target)) {
+        targetDisplay = `${target}`;
+      } else {
+        // Show as fraction with denominator 8 if possible
+        const n8 = target * 8;
+        if (Number.isInteger(n8)) {
+          const g = gcd(n8, 8);
+          targetDisplay = `${n8/g}/${8/g}`;
+        } else {
+          targetDisplay = target.toFixed(3).replace(/0+$/, '');
+        }
+      }
+
+      rounds.push({
+        target,
+        targetDisplay,
+        choices: allChoices.map(c => ({
+          text: c,
+          isCorrect: correctChoices.includes(c)
+        }))
+      });
+    });
+
+    return rounds;
+  },
+
+  buildUI() {
+    const content = document.getElementById('game-content');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'equiv-wrapper';
+    wrapper.id = 'g6-wrapper';
+    content.appendChild(wrapper);
+
+    const panel = document.getElementById('input-panel');
+
+    const submitBtn = document.createElement('button');
+    submitBtn.className = 'equiv-submit-btn';
+    submitBtn.textContent = 'Check Answer ✓';
+    submitBtn.addEventListener('click', () => this.onSubmit());
+    panel.appendChild(submitBtn);
+
+    const scoreEl = document.createElement('div');
+    scoreEl.className = 'equiv-score-display';
+    scoreEl.id = 'g6-score';
+    panel.appendChild(scoreEl);
+
+    this.showRound();
+  },
+
+  showRound() {
+    if (this.currentRound >= this.rounds.length) {
+      setTimeout(() => this.finish(), 300);
+      return;
+    }
+
+    const round = this.rounds[this.currentRound];
+    this.selectedChoices = new Set();
+
+    const wrapper = document.getElementById('g6-wrapper');
+    if (!wrapper) return;
+    wrapper.innerHTML = '';
+
+    const targetEl = document.createElement('div');
+    targetEl.className = 'equiv-target';
+    targetEl.textContent = round.targetDisplay;
+    wrapper.appendChild(targetEl);
+
+    const instrEl = document.createElement('div');
+    instrEl.className = 'equiv-instruction';
+    instrEl.textContent = 'Tap everything that equals this value';
+    wrapper.appendChild(instrEl);
+
+    const roundInfo = document.createElement('div');
+    roundInfo.className = 'equiv-round-info';
+    roundInfo.textContent = `Round ${this.currentRound + 1} of ${this.rounds.length}`;
+    wrapper.appendChild(roundInfo);
+
+    const choicesEl = document.createElement('div');
+    choicesEl.className = 'equiv-choices';
+    choicesEl.id = 'g6-choices';
+
+    round.choices.forEach((choice, i) => {
+      const btn = document.createElement('div');
+      btn.className = 'equiv-choice';
+      btn.textContent = choice.text;
+      btn.addEventListener('click', () => this.toggleChoice(i));
+      choicesEl.appendChild(btn);
+    });
+
+    wrapper.appendChild(choicesEl);
+
+    const scoreEl = document.getElementById('g6-score');
+    if (scoreEl) scoreEl.textContent = `Round ${this.currentRound + 1} / ${this.rounds.length}`;
+  },
+
+  toggleChoice(i) {
+    if (this.locked) return;
+    const choicesEl = document.getElementById('g6-choices');
+    if (!choicesEl) return;
+    const btn = choicesEl.children[i];
+    if (!btn) return;
+
+    if (this.selectedChoices.has(i)) {
+      this.selectedChoices.delete(i);
+      btn.classList.remove('selected');
+    } else {
+      this.selectedChoices.add(i);
+      btn.classList.add('selected');
+    }
+  },
+
+  onSubmit() {
+    if (this.locked) return;
+    const round = this.rounds[this.currentRound];
+    const choicesEl = document.getElementById('g6-choices');
+    if (!choicesEl) return;
+
+    let hasError = false;
+
+    this.selectedChoices.forEach(i => {
+      const choice = round.choices[i];
+      const btn = choicesEl.children[i];
+      if (!choice.isCorrect) {
+        btn.classList.remove('selected');
+        btn.classList.add('wrong');
+        hasError = true;
+      } else {
+        btn.classList.remove('selected');
+        btn.classList.add('correct');
+      }
+    });
+
+    round.choices.forEach((choice, i) => {
+      if (choice.isCorrect && !this.selectedChoices.has(i)) {
+        choicesEl.children[i].classList.add('missed');
+        hasError = true;
+      }
+    });
+
+    if (hasError) {
+      State.addError();
+      this.roundErrors++;
+    }
+
+    this.locked = true;
+    setTimeout(() => {
+      this.locked = false;
+      this.currentRound++;
+      this.showRound();
+    }, hasError ? 1800 : 700);
+  },
+
+  finish() {
+    App.showResults({
+      title: 'Equivalence Complete! 🎉',
+      extra: `<div class="result-stat full-width">
+        <div class="val">${this.rounds.length - this.roundErrors} / ${this.rounds.length}</div>
+        <div class="lbl">Rounds Correct</div>
+      </div>`
+    });
+  },
+
+  cleanup() {}
+};
+
+/* ============================================================
+   PHYSICAL KEYBOARD SUPPORT
+   ============================================================ */
+document.addEventListener('keydown', e => {
+  const game = App.currentGameObj;
+  if (!game) return;
+  if (!document.getElementById('game-screen').classList.contains('active')) return;
+
+  const key = e.key;
+  if ('0123456789'.includes(key) && key.length === 1) {
+    if (game.onDigit) { e.preventDefault(); game.onDigit(parseInt(key)); }
+  } else if (key === 'Backspace') {
+    if (game.onDelete) { e.preventDefault(); game.onDelete(); }
+  } else if (key === 'Enter') {
+    e.preventDefault();
+    if (game.onEnter) game.onEnter();
+    else if (game.onSubmit) game.onSubmit();
+  }
+});
+
+/* ============================================================
+   PREVENT DOUBLE-TAP ZOOM ON IOS
+   ============================================================ */
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
+
+/* ============================================================
+   INIT
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('Math Facts Game ready');
+});
+</script>
+</body>
+</html>
