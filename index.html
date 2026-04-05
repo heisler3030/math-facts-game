@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Math Facts</title>
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Sus Game</title>
 <style>
 /* ============================================================
    ROOT VARIABLES & RESET
@@ -32,6 +35,10 @@
   --radius-sm: 6px;
   --cell-size: min(9vw, 9vh, 52px);
   --keypad-btn-size: min(18vw, 14vh, 72px);
+  --keypad-gap: 7px;
+  --input-panel-padding: 10px;
+  /* Portrait: grid takes ~55% of screen height after header */
+  --portrait-grid-height: calc((100dvh - 50px) * 0.55);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -421,6 +428,13 @@ html, body {
   cursor: default;
 }
 
+.factor-cell.correct-flash {
+  background: var(--correct-light) !important;
+  border-color: var(--correct) !important;
+  color: var(--correct) !important;
+  animation: pulse-correct 0.35s ease;
+}
+
 .factor-cell.error-flash {
   background: var(--error-light) !important;
   border-color: var(--error) !important;
@@ -452,6 +466,11 @@ html, body {
   max-width: 360px;
   width: 90%;
   transition: background 0.25s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
 }
 
 .flashcard.correct-flash {
@@ -640,6 +659,8 @@ html, body {
   color: var(--warning);
   border: 2px solid #FCD34D;
   font-size: clamp(14px, 3vw, 20px);
+  grid-column: span 2;
+  width: calc(var(--keypad-btn-size) * 2 + 7px);
 }
 
 .keypad-btn.action-enter {
@@ -647,8 +668,8 @@ html, body {
   color: white;
   border: 2px solid var(--primary-dark);
   font-size: clamp(12px, 2.2vw, 16px);
-  grid-column: span 2;
-  width: calc(var(--keypad-btn-size) * 2 + 7px);
+  grid-column: span 3;
+  width: calc(var(--keypad-btn-size) * 3 + 14px);
 }
 
 .keypad-btn.action-enter:active { background: var(--primary-dark); }
@@ -932,11 +953,48 @@ html, body {
 /* ============================================================
    RESPONSIVE TWEAKS
    ============================================================ */
-@media (max-width: 380px) {
+
+/* Portrait phones — shrink keypad so grid fits without scrolling.
+   iPhone 13 mini = 375×812 CSS px (safe area ~812px).
+   Grid at 9vw cells = 9×33.75 + 8×3 = ~328px + header ~50px = ~378px used.
+   Remaining for input panel: 812 - 378 = ~434px, but we want compact.
+   Target keypad button: ~52px so 4 rows = 4×52 + 3×6 = 226px + display + padding ≈ 310px total. */
+@media (orientation: portrait) and (max-width: 430px) {
   :root {
-    --cell-size: min(8.5vw, 8.5vh, 44px);
-    --keypad-btn-size: min(17vw, 13vh, 64px);
+    --keypad-btn-size: 52px;
+    --keypad-gap: 6px;
   }
+  #input-panel {
+    padding: 6px 8px;
+    gap: 5px;
+  }
+  .keypad { gap: 6px; }
+  .keypad-btn.action-del { width: calc(52px * 2 + 6px); }
+  .keypad-btn.action-enter { width: calc(52px * 3 + 12px); }
+  .input-display {
+    min-height: 38px;
+    padding: 4px 12px;
+    font-size: 22px;
+  }
+  .selected-indicator {
+    min-height: 16px;
+    font-size: 12px;
+  }
+  .game-header { padding: 5px 10px; }
+  .stat-badge { padding: 3px 8px; }
+  .stat-badge .stat-val { font-size: 13px; }
+}
+
+/* Portrait very small (iPhone SE 375×667) */
+@media (orientation: portrait) and (max-width: 430px) and (max-height: 680px) {
+  :root {
+    --keypad-btn-size: 46px;
+  }
+  .keypad-btn.action-del { width: calc(46px * 2 + 5px); }
+  .keypad-btn.action-enter { width: calc(46px * 3 + 10px); }
+  #input-panel { padding: 4px 6px; gap: 4px; }
+  .keypad { gap: 5px; }
+  .input-display { min-height: 34px; padding: 3px 10px; font-size: 18px; }
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
@@ -995,7 +1053,7 @@ html, body {
      ============================================================ -->
 <div id="home-screen" class="screen active">
   <div class="home-header">
-    <h1>🧮 Math Facts</h1>
+    <h1>🧮 Sus Game</h1>
     <p>Choose a game to practice</p>
   </div>
   <div class="game-grid">
@@ -1006,7 +1064,8 @@ html, body {
         <p>Fill in the 2–9 times table grid. Close all boxes to win!</p>
       </div>
     </div>
-    <div class="game-card" onclick="App.startGame(2)">
+    <!-- Factor Hunt games temporarily hidden — see todo.md -->
+    <!-- <div class="game-card" onclick="App.startGame(2)">
       <div class="game-card-icon icon-2">🔢</div>
       <div class="game-card-text">
         <h3>Factor Hunt</h3>
@@ -1019,7 +1078,7 @@ html, body {
         <h3>Factor Hunt (Auto)</h3>
         <p>Like Factor Hunt, but the factor is chosen for you!</p>
       </div>
-    </div>
+    </div> -->
     <div class="game-card" onclick="App.startGame(4)">
       <div class="game-card-icon icon-4">⚡</div>
       <div class="game-card-text">
@@ -1034,13 +1093,14 @@ html, body {
         <p>Division facts from the 2–9 times tables. How fast can you go?</p>
       </div>
     </div>
-    <div class="game-card" onclick="App.startGame(6)">
+    <!-- Equivalence Challenge temporarily hidden — see todo.md -->
+    <!-- <div class="game-card" onclick="App.startGame(6)">
       <div class="game-card-icon icon-6">🟰</div>
       <div class="game-card-text">
         <h3>Equivalence Challenge</h3>
         <p>Find all fractions, decimals &amp; percentages that match the target.</p>
       </div>
-    </div>
+    </div> -->
   </div>
 </div>
 
@@ -1079,6 +1139,7 @@ html, body {
     <div class="results-stats" id="results-stats"></div>
     <div class="results-btns">
       <button class="btn-primary" onclick="App.playAgain()">Play Again</button>
+      <button class="btn-secondary" id="btn-share" onclick="App.shareResult()">📸 Share Result</button>
       <button class="btn-secondary" onclick="App.goHome()">Home</button>
     </div>
   </div>
@@ -1272,6 +1333,85 @@ const App = {
     if (action) action();
   },
 
+  async shareResult() {
+    const card = document.getElementById('results-card');
+    const btn = document.getElementById('btn-share');
+    if (!card || !btn) return;
+
+    const origText = btn.textContent;
+    btn.textContent = '⏳ Capturing…';
+    btn.disabled = true;
+
+    try {
+      // Load html2canvas if not already loaded
+      if (typeof html2canvas === 'undefined') {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'html2canvas.min.js';
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+
+      // Temporarily hide the share button so it doesn't appear in screenshot
+      btn.style.display = 'none';
+
+      const canvas = await html2canvas(card, {
+        backgroundColor: null,
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+
+      btn.style.display = '';
+
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], 'sus-game-result.png', { type: 'image/png' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'Sus Game Result',
+              text: 'Check out my Sus Game score! 🧮'
+            });
+          } catch (e) {
+            if (e.name !== 'AbortError') this._downloadFallback(canvas);
+          }
+        } else if (navigator.share) {
+          // Share without file (text + URL)
+          try {
+            await navigator.share({
+              title: 'Sus Game Result',
+              text: 'Check out my Sus Game score! 🧮',
+              url: window.location.href
+            });
+          } catch (e) { /* AbortError is fine */ }
+        } else {
+          // Desktop fallback: download the image
+          this._downloadFallback(canvas);
+        }
+
+        btn.textContent = origText;
+        btn.disabled = false;
+      }, 'image/png');
+
+    } catch (err) {
+      console.error('Share failed:', err);
+      btn.style.display = '';
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
+  },
+
+  _downloadFallback(canvas) {
+    const link = document.createElement('a');
+    link.download = 'sus-game-result.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  },
+
   showResults(data) {
     Timer.stop();
     const elapsed = Timer.getElapsed();
@@ -1289,16 +1429,21 @@ const App = {
       State.errors === 1 ? 'Just 1 mistake — great job!' :
       `${State.errors} mistakes — keep practicing!`;
 
+    // Timestamp: e.g. "Sat Apr 5 · 6:32 PM"
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const timestamp = `${dateStr} · ${timeStr}`;
+
     document.getElementById('results-stats').innerHTML = `
-      <div class="result-stat">
+      <div class="result-stat full-width">
         <div class="val">${formatTimeDetailed(elapsed)}</div>
         <div class="lbl">Time</div>
       </div>
-      <div class="result-stat">
-        <div class="val">${State.errors}</div>
-        <div class="lbl">Errors</div>
-      </div>
       ${data.extra || ''}
+      <div class="result-stat full-width" style="background:transparent;padding:4px 0 0;">
+        <div style="font-size:12px;color:var(--text-light);">${timestamp}</div>
+      </div>
     `;
 
     const card = document.getElementById('results-card');
@@ -1493,11 +1638,11 @@ const Game1 = {
       this.selectedCell = null;
       this.inputVal = '';
       this.updateDisplay();
-      const ind = document.getElementById('g1-indicator');
-      if (ind) ind.textContent = 'Tap a cell to select';
 
       if (this.closedCount >= this.totalCells) {
         setTimeout(() => this.finish(), 300);
+      } else {
+        this.advanceToNextCell(row, col);
       }
     } else {
       State.addError();
@@ -1530,6 +1675,29 @@ const Game1 = {
     this.closedCount++;
   },
 
+  advanceToNextCell(fromRow, fromCol) {
+    // Build ordered list of all open cells in row-major order (NUMS order)
+    const order = [];
+    for (const r of NUMS) {
+      for (const c of NUMS) {
+        order.push(`${r},${c}`);
+      }
+    }
+    // Find current position in order
+    const currentKey = `${fromRow},${fromCol}`;
+    const startIdx = order.indexOf(currentKey);
+    // Search from next position, wrapping around
+    for (let i = 1; i <= order.length; i++) {
+      const key = order[(startIdx + i) % order.length];
+      const cellData = this.cells[key];
+      if (cellData && !cellData.closed) {
+        const [r, c] = key.split(',').map(Number);
+        this.selectCell(r, c);
+        return;
+      }
+    }
+  },
+
   finish() {
     App.showResults({ title: 'Grid Complete! 🎉' });
   },
@@ -1539,34 +1707,43 @@ const Game1 = {
 
 /* ============================================================
    GAME 2 — FACTOR HUNT (base, used by Game3 too)
+   
+   New design:
+   - 7×7 grid: factors 2-8, multiples 2-8 (49 cells)
+   - Choose factor BEFORE game starts (shown in input panel)
+   - Enter: correct selections flash green + close permanently;
+     wrong selections flash red but STAY selected — user must
+     deselect wrong ones and resubmit
    ============================================================ */
+const FACTOR_NUMS = [2,3,4,5,6,7,8]; // 7 factors for 7×7 grid
+
 function createFactorHuntGame(autoFactor) {
   return {
     selectedFactor: null,
-    selectedMultiples: [],
-    multiples: [],
+    multiples: [],       // array of {value, factor, el, closed, selected, wrong}
     closedCount: 0,
     totalMultiples: 0,
     locked: false,
     autoFactor: autoFactor,
+    gameStarted: false,  // false = factor-selection phase
 
     init() {
       this.selectedFactor = null;
-      this.selectedMultiples = [];
       this.multiples = [];
       this.closedCount = 0;
       this.locked = false;
-      this.buildGame();
+      this.gameStarted = false;
+      this.buildGrid();
       this.buildInputPanel();
-      Timer.start();
+      // Timer starts when factor is chosen and game begins
     },
 
-    buildGame() {
-      // 64 cells: each factor 2-9 has 8 multiples (2-9 × factor)
+    buildGrid() {
+      // 7×7 = 49 cells: factors 2-8, multipliers 2-8
       const allMultiples = [];
-      for (const f of NUMS) {
-        for (const m of NUMS) {
-          allMultiples.push({ value: f * m, factor: f, multiplier: m, el: null, closed: false, selected: false });
+      for (const f of FACTOR_NUMS) {
+        for (const m of FACTOR_NUMS) {
+          allMultiples.push({ value: f * m, factor: f, multiplier: m, el: null, closed: false, selected: false, wrong: false });
         }
       }
       this.multiples = shuffle(allMultiples);
@@ -1579,17 +1756,15 @@ function createFactorHuntGame(autoFactor) {
       const info = document.createElement('div');
       info.className = 'factors-info';
       info.id = 'g2-info';
-      info.textContent = this.autoFactor ? 'Loading...' : 'Select a factor, then tap its multiples';
+      info.textContent = 'Choose a factor to begin';
       wrapper.appendChild(info);
 
-      // Build grid: 8 columns × 8 rows = 64 cells
-      const COLS = 8;
+      const COLS = 7;
       const grid = document.createElement('div');
       grid.className = 'factors-grid';
       grid.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
 
-      // Size cells to fit available space
-      const cellPx = 'min(10vw, 9vh, 54px)';
+      const cellPx = 'min(11vw, 10vh, 58px)';
 
       this.multiples.forEach((m, i) => {
         const cell = document.createElement('div');
@@ -1610,6 +1785,7 @@ function createFactorHuntGame(autoFactor) {
       const panel = document.getElementById('input-panel');
 
       if (this.autoFactor) {
+        // Auto mode: show which factor is active
         const label = document.createElement('div');
         label.className = 'auto-factor-label';
         label.textContent = 'Find all multiples of:';
@@ -1621,16 +1797,19 @@ function createFactorHuntGame(autoFactor) {
         display.textContent = '?';
         panel.appendChild(display);
       } else {
+        // Manual mode: factor chooser (always visible)
         const label = document.createElement('div');
-        label.style.cssText = 'font-size:12px;color:var(--text-light);text-align:center;flex-shrink:0;';
+        label.style.cssText = 'font-size:12px;color:var(--text-light);text-align:center;flex-shrink:0;font-weight:600;';
         label.textContent = 'Choose a factor:';
         panel.appendChild(label);
 
         const factorGrid = document.createElement('div');
         factorGrid.className = 'factor-keypad';
         factorGrid.id = 'g2-factor-keypad';
+        // 7 buttons — use 4-col grid, last row has 3
+        factorGrid.style.gridTemplateColumns = 'repeat(4, 1fr)';
 
-        NUMS.forEach(f => {
+        FACTOR_NUMS.forEach(f => {
           const btn = document.createElement('button');
           btn.className = 'factor-keypad-btn';
           btn.textContent = f;
@@ -1643,6 +1822,7 @@ function createFactorHuntGame(autoFactor) {
 
       const enterBtn = document.createElement('button');
       enterBtn.className = 'factor-enter-btn';
+      enterBtn.id = 'g2-enter-btn';
       enterBtn.textContent = 'Enter ✓';
       enterBtn.addEventListener('click', () => this.onEnter());
       panel.appendChild(enterBtn);
@@ -1653,7 +1833,7 @@ function createFactorHuntGame(autoFactor) {
     },
 
     autoSelectNextFactor() {
-      const remaining = NUMS.filter(f =>
+      const remaining = FACTOR_NUMS.filter(f =>
         this.multiples.some(m => m.factor === f && !m.closed)
       );
       if (remaining.length === 0) {
@@ -1665,15 +1845,14 @@ function createFactorHuntGame(autoFactor) {
     },
 
     selectFactor(f) {
-      // Clear previous selections
-      this.selectedMultiples.forEach(i => {
-        const m = this.multiples[i];
-        if (m && !m.closed) {
-          m.el.classList.remove('selected');
+      // If switching factors, clear all non-closed selections
+      this.multiples.forEach(m => {
+        if (!m.closed) {
           m.selected = false;
+          m.wrong = false;
+          m.el.classList.remove('selected', 'error-flash', 'correct-flash');
         }
       });
-      this.selectedMultiples = [];
 
       // Update factor button UI
       document.querySelectorAll('.factor-keypad-btn').forEach(btn => btn.classList.remove('selected'));
@@ -1686,6 +1865,12 @@ function createFactorHuntGame(autoFactor) {
 
       this.selectedFactor = f;
 
+      // Start timer on first factor selection
+      if (!this.gameStarted) {
+        this.gameStarted = true;
+        Timer.start();
+      }
+
       const count = this.multiples.filter(m => m.factor === f && !m.closed).length;
       const info = document.getElementById('g2-info');
       if (info) info.innerHTML = `Find all multiples of <strong>${f}</strong> &nbsp;(${count} remaining)`;
@@ -1695,94 +1880,108 @@ function createFactorHuntGame(autoFactor) {
       if (this.locked || this.selectedFactor === null) return;
       const m = this.multiples[i];
       if (!m || m.closed) return;
-
+      // If marked wrong, allow deselection only
+      if (m.wrong) {
+        m.wrong = false;
+        m.selected = false;
+        m.el.classList.remove('selected', 'error-flash');
+        return;
+      }
       if (m.selected) {
         m.selected = false;
         m.el.classList.remove('selected');
-        this.selectedMultiples = this.selectedMultiples.filter(x => x !== i);
       } else {
         m.selected = true;
         m.el.classList.add('selected');
-        this.selectedMultiples.push(i);
       }
     },
 
     onEnter() {
-      if (this.locked || this.selectedFactor === null || this.selectedMultiples.length === 0) return;
+      if (this.locked || this.selectedFactor === null) return;
+      const selected = this.multiples.filter(m => m.selected && !m.closed);
+      if (selected.length === 0) return;
 
       const f = this.selectedFactor;
+      let hasError = false;
 
-      // Check for wrong selections (cells that don't belong to this factor)
-      const wrongOnes = this.selectedMultiples.filter(i => this.multiples[i].factor !== f);
-      if (wrongOnes.length > 0) {
-        State.addError();
-        this.locked = true;
-        wrongOnes.forEach(i => {
-          const m = this.multiples[i];
+      // Evaluate each selected cell
+      selected.forEach(m => {
+        if (m.factor === f) {
+          // Correct — flash green, will be closed
+          m.el.classList.remove('selected', 'error-flash');
+          m.el.classList.add('correct-flash');
+          m.wrong = false;
+        } else {
+          // Wrong — flash red, stays selected, must be deselected
           m.el.classList.remove('selected');
           m.el.classList.add('error-flash');
-          m.selected = false;
-          setTimeout(() => m.el.classList.remove('error-flash'), 900);
-        });
-        this.selectedMultiples = this.selectedMultiples.filter(i => this.multiples[i].factor === f);
-        setTimeout(() => { this.locked = false; }, 950);
-        return;
-      }
-
-      // Check if all multiples of this factor are selected
-      const allOfFactor = this.multiples.filter(m => m.factor === f && !m.closed);
-      const selectedOfFactor = this.selectedMultiples.filter(i => this.multiples[i].factor === f);
-
-      if (selectedOfFactor.length < allOfFactor.length) {
-        // Missing some — flash the unselected ones
-        State.addError();
-        this.locked = true;
-        allOfFactor.forEach(m => {
-          if (!m.selected) {
-            m.el.classList.add('error-flash');
-            setTimeout(() => m.el.classList.remove('error-flash'), 900);
-          }
-        });
-        setTimeout(() => { this.locked = false; }, 950);
-        return;
-      }
-
-      // All correct! Close them
-      this.selectedMultiples.forEach(i => {
-        const m = this.multiples[i];
-        m.closed = true;
-        m.selected = false;
-        m.el.classList.remove('selected');
-        m.el.classList.add('closed');
-        this.closedCount++;
-      });
-      this.selectedMultiples = [];
-
-      // Disable factor button if done
-      if (!this.autoFactor) {
-        const remaining = this.multiples.filter(m => m.factor === f && !m.closed).length;
-        const btn = document.querySelector(`.factor-keypad-btn[data-factor="${f}"]`);
-        if (btn && remaining === 0) {
-          btn.disabled = true;
+          m.wrong = true;
+          hasError = true;
         }
+      });
+
+      if (hasError) {
+        State.addError();
       }
 
-      if (this.closedCount >= this.totalMultiples) {
-        setTimeout(() => this.finish(), 300);
-        return;
+      // Check if all correct multiples of this factor are selected
+      const allOfFactor = this.multiples.filter(m => m.factor === f && !m.closed);
+      const correctSelected = selected.filter(m => m.factor === f);
+      const missingCount = allOfFactor.length - correctSelected.length;
+
+      if (missingCount > 0 && !hasError) {
+        // All selected are correct but some are missing — count as error
+        State.addError();
+        hasError = true;
       }
 
-      this.selectedFactor = null;
-      document.querySelectorAll('.factor-keypad-btn').forEach(b => b.classList.remove('selected'));
+      this.locked = true;
 
-      if (this.autoFactor) {
+      setTimeout(() => {
+        // Close the correctly selected cells
+        correctSelected.forEach(m => {
+          m.closed = true;
+          m.selected = false;
+          m.wrong = false;
+          m.el.classList.remove('correct-flash', 'selected', 'error-flash');
+          m.el.classList.add('closed');
+          this.closedCount++;
+        });
+
+        // Remove correct-flash from wrong ones (they keep error-flash)
+        // Wrong cells remain with error-flash class until user taps them
+
+        this.locked = false;
+
+        // Update info
+        const remaining = this.multiples.filter(m => m.factor === f && !m.closed).length;
         const info = document.getElementById('g2-info');
-        if (info) info.textContent = 'Great! Next factor coming...';
-        setTimeout(() => this.autoSelectNextFactor(), 500);
-      } else {
-        const info = document.getElementById('g2-info');
-        if (info) info.textContent = 'Select a factor, then tap its multiples';
-      }
+
+        if (remaining === 0) {
+          // Factor complete!
+          if (!this.autoFactor) {
+            const factorBtn = document.querySelector(`.factor-keypad-btn[data-factor="${f}"]`);
+            if (factorBtn) factorBtn.disabled = true;
+          }
+
+          if (this.closedCount >= this.totalMultiples) {
+            setTimeout(() => this.finish(), 300);
+            return;
+          }
+
+          this.selectedFactor = null;
+          document.querySelectorAll('.factor-keypad-btn').forEach(b => b.classList.remove('selected'));
+
+          if (this.autoFactor) {
+            if (info) info.textContent = 'Great! Next factor coming...';
+            setTimeout(() => this.autoSelectNextFactor(), 500);
+          } else {
+            if (info) info.textContent = 'Choose a factor to continue';
+          }
+        } else {
+          if (info) info.innerHTML = `Find all multiples of <strong>${f}</strong> &nbsp;(${remaining} remaining)`;
+        }
+      }, 600);
     },
 
     finish() {
@@ -1907,7 +2106,8 @@ function createFlashCardGame(isDivision) {
           : `${q.a} × ${q.b} = ?`;
       }
       if (answerEl) answerEl.textContent = '';
-      if (countEl) countEl.textContent = `${this.currentIdx + 1} of ${this.questions.length}`;
+      const remaining = this.questions.length - this.currentIdx;
+      if (countEl) countEl.textContent = `${remaining} remaining`;
 
       const done = this.totalQ - this.questions.length + this.currentIdx;
       if (progressEl) progressEl.style.width = `${Math.max(0, (done / this.totalQ) * 100)}%`;
@@ -2302,10 +2502,74 @@ document.addEventListener('touchend', e => {
 }, { passive: false });
 
 /* ============================================================
+   PWA INSTALL HINT
+   On iOS, fullscreen requires "Add to Home Screen".
+   Show a one-time banner if running in browser (not standalone).
+   ============================================================ */
+function isStandalone() {
+  return window.navigator.standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches;
+}
+
+function showInstallHint() {
+  if (isStandalone()) return; // already installed
+  if (sessionStorage.getItem('installHintDismissed')) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'install-hint';
+  banner.style.cssText = `
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(30,30,50,0.96);
+    color: white;
+    padding: 14px 16px 20px;
+    font-size: 13px;
+    line-height: 1.5;
+    z-index: 999;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+  `;
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const msg = isIOS
+    ? `<strong>📲 Add to Home Screen for fullscreen</strong><br>Tap <strong>Share</strong> (↑) then <strong>"Add to Home Screen"</strong> to play without the browser bar.`
+    : `<strong>📲 Install for fullscreen</strong><br>Use your browser's install option to add Math Facts to your home screen.`;
+
+  const text = document.createElement('div');
+  text.style.flex = '1';
+  text.innerHTML = msg;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = `
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 2px;
+  `;
+  closeBtn.addEventListener('click', () => {
+    banner.remove();
+    sessionStorage.setItem('installHintDismissed', '1');
+  });
+
+  banner.appendChild(text);
+  banner.appendChild(closeBtn);
+  document.body.appendChild(banner);
+}
+
+/* ============================================================
    INIT
    ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
   console.log('Math Facts Game ready');
+  // Show install hint after a short delay so the page renders first
+  setTimeout(showInstallHint, 1500);
 });
 </script>
 </body>
