@@ -2564,10 +2564,23 @@ function showInstallHint() {
 }
 
 /* ============================================================
+   SERVICE WORKER REGISTRATION
+   ============================================================ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      console.log('SW registered, scope:', reg.scope);
+    }).catch(err => {
+      console.warn('SW registration failed:', err);
+    });
+  });
+}
+
+/* ============================================================
    INIT
    ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('Math Facts Game ready');
+  console.log('Sus Game ready');
   // Show install hint after a short delay so the page renders first
   setTimeout(showInstallHint, 1500);
 });
