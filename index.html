@@ -2546,12 +2546,12 @@ const Game6 = {
 const Game7 = {
   // Round definitions (in order)
   ROUNDS: [
-    { id: 'min',    label: 'Round 1 of 6', prompt: 'Tap the <strong>MINIMUM</strong> (smallest value)' },
-    { id: 'max',    label: 'Round 2 of 6', prompt: 'Tap the <strong>MAXIMUM</strong> (largest value)' },
-    { id: 'range',  label: 'Round 3 of 6', prompt: 'What is the <strong>RANGE</strong>? (max − min)' },
-    { id: 'mode',   label: 'Round 4 of 6', prompt: 'Tap all numbers that appear <strong>most often</strong> (the MODE)' },
-    { id: 'median', label: 'Round 5 of 6', prompt: 'Tap the <strong>MEDIAN</strong> (middle value when sorted)' },
-    { id: 'mean',   label: 'Round 6 of 6', prompt: 'What is the <strong>MEAN</strong>? (sum ÷ count)' },
+    { id: 'min',    label: 'Round 1 of 6', prompt: 'Tap the <strong>MINIMUM</strong>' },
+    { id: 'max',    label: 'Round 2 of 6', prompt: 'Tap the <strong>MAXIMUM</strong>' },
+    { id: 'range',  label: 'Round 3 of 6', prompt: 'What is the <strong>RANGE</strong>?' },
+    { id: 'mode',   label: 'Round 4 of 6', prompt: 'Tap all numbers that show the <strong>MODE</strong>' },
+    { id: 'median', label: 'Round 5 of 6', prompt: 'Tap the <strong>MEDIAN</strong>' },
+    { id: 'mean',   label: 'Round 6 of 6', prompt: null }, // built dynamically with sum
   ],
 
   dataset: [],      // array of numbers shown to player
@@ -2708,7 +2708,13 @@ const Game7 = {
     }
 
     document.getElementById('dd-label').textContent = round.label;
-    document.getElementById('dd-prompt').innerHTML = round.prompt;
+
+    // Build prompt — mean round uses dynamic sum
+    const sum = this.dataset.reduce((a, b) => a + b, 0);
+    const promptHTML = round.prompt !== null
+      ? round.prompt
+      : `What is the <strong>MEAN</strong>? &nbsp;<span style="font-size:0.8em;color:var(--text-light);">(sum = ${sum})</span>`;
+    document.getElementById('dd-prompt').innerHTML = promptHTML;
 
     // Hint for median
     const hint = document.getElementById('dd-hint');
