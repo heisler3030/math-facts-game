@@ -148,6 +148,7 @@ html, body {
 .icon-4 { background: #FCE7F3; }
 .icon-5 { background: #EDE9FE; }
 .icon-6 { background: #FFEDD5; }
+.icon-7 { background: #E0F2FE; }
 
 /* ============================================================
    GAME SCREEN LAYOUT
@@ -1101,6 +1102,13 @@ html, body {
         <p>Find all fractions, decimals &amp; percentages that match the target.</p>
       </div>
     </div> -->
+    <div class="game-card" onclick="App.startGame(7)">
+      <div class="game-card-icon icon-7">📊</div>
+      <div class="game-card-text">
+        <h3>Data Dash</h3>
+        <p>Find the min, max, range, mode, median &amp; mean of a data set.</p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1283,7 +1291,8 @@ const App = {
       3: 'Factor Hunt (Auto)',
       4: 'Multiplication Flash Cards',
       5: 'Division Flash Cards',
-      6: 'Equivalence Challenge'
+      6: 'Equivalence Challenge',
+      7: 'Data Dash'
     };
     document.getElementById('game-title').textContent = titles[num] || 'Game';
 
@@ -1293,7 +1302,7 @@ const App = {
 
     this.showScreen('game-screen');
 
-    const games = { 1: Game1, 2: Game2, 3: Game3, 4: Game4, 5: Game5, 6: Game6 };
+    const games = { 1: Game1, 2: Game2, 3: Game3, 4: Game4, 5: Game5, 6: Game6, 7: Game7 };
     this.currentGameObj = games[num];
     this.currentGameObj.init();
   },
@@ -2464,6 +2473,479 @@ const Game6 = {
       extra: `<div class="result-stat full-width">
         <div class="val">${this.rounds.length - this.roundErrors} / ${this.rounds.length}</div>
         <div class="lbl">Rounds Correct</div>
+      </div>`
+    });
+  },
+
+  cleanup() {}
+};
+
+/* ============================================================
+   GAME 7 — DATA DASH
+   Five rounds: min/max, range, mode, median, mean
+   ============================================================ */
+
+/* CSS for Data Dash tiles — injected once */
+(function injectDataDashCSS() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .dd-wrapper {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      width: 100%; height: 100%;
+      gap: 8px; padding: 10px;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+    }
+    .dd-round-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--text-light);
+      flex-shrink: 0;
+    }
+    .dd-prompt {
+      font-size: clamp(15px, 3.5vw, 20px); font-weight: 700;
+      color: var(--text); text-align: center; flex-shrink: 0;
+      line-height: 1.3;
+    }
+    .dd-prompt strong { color: var(--primary); }
+    .dd-tiles {
+      display: flex; flex-wrap: wrap;
+      gap: 8px; justify-content: center;
+      flex-shrink: 0; max-width: 480px;
+    }
+    .dd-tile {
+      min-width: 52px; height: 52px; padding: 0 10px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 12px; border: 2px solid var(--border);
+      background: white; font-size: clamp(16px, 4vw, 22px);
+      font-weight: 800; cursor: pointer;
+      transition: all 0.12s; user-select: none;
+    }
+    .dd-tile:active { transform: scale(0.88); }
+    .dd-tile.selected { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+    .dd-tile.correct  { background: var(--correct-light); border-color: var(--correct); color: var(--correct); cursor: default; }
+    .dd-tile.error    { background: var(--error-light); border-color: var(--error); color: var(--error); animation: shake 0.4s ease; }
+    .dd-tile.missed   { background: var(--warning-light); border-color: var(--warning); color: var(--warning); cursor: default; }
+    .dd-tile.dim      { opacity: 0.35; cursor: default; pointer-events: none; }
+    .dd-sorted-hint {
+      font-size: 12px; color: var(--text-light); text-align: center;
+      flex-shrink: 0; font-style: italic;
+    }
+    .dd-progress-dots {
+      display: flex; gap: 6px; flex-shrink: 0;
+    }
+    .dd-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--border); transition: background 0.2s;
+    }
+    .dd-dot.done { background: var(--correct); }
+    .dd-dot.active { background: var(--primary); }
+  `;
+  document.head.appendChild(style);
+})();
+
+const Game7 = {
+  // Round definitions (in order)
+  ROUNDS: [
+    { id: 'min',    label: 'Round 1 of 6', prompt: 'Tap the <strong>MINIMUM</strong> (smallest value)' },
+    { id: 'max',    label: 'Round 2 of 6', prompt: 'Tap the <strong>MAXIMUM</strong> (largest value)' },
+    { id: 'range',  label: 'Round 3 of 6', prompt: 'What is the <strong>RANGE</strong>? (max − min)' },
+    { id: 'mode',   label: 'Round 4 of 6', prompt: 'Tap all numbers that appear <strong>most often</strong> (the MODE)' },
+    { id: 'median', label: 'Round 5 of 6', prompt: 'Tap the <strong>MEDIAN</strong> (middle value when sorted)' },
+    { id: 'mean',   label: 'Round 6 of 6', prompt: 'What is the <strong>MEAN</strong>? (sum ÷ count)' },
+  ],
+
+  dataset: [],      // array of numbers shown to player
+  sorted: [],       // sorted copy
+  currentRound: 0,
+  locked: false,
+  inputVal: '',
+  tileEls: [],      // DOM elements for tiles
+  selectedTiles: new Set(), // indices into dataset
+
+  init() {
+    this.currentRound = 0;
+    this.locked = false;
+    this.inputVal = '';
+    this.selectedTiles = new Set();
+    this.generateDataset();
+    this.buildUI();
+    Timer.start();
+  },
+
+  generateDataset() {
+    // Generate 7 numbers where:
+    // - mean is a whole number
+    // - there is exactly one mode (one value appears twice, rest once)
+    // - median is unambiguous (odd count)
+    // - range is reasonable (10-30)
+    // Numbers in range 2-30
+    let attempts = 0;
+    while (attempts++ < 200) {
+      // Pick 5 distinct base numbers from 2-25
+      const pool = [];
+      while (pool.length < 5) {
+        const n = Math.floor(Math.random() * 24) + 2;
+        if (!pool.includes(n)) pool.push(n);
+      }
+      // Duplicate one to create mode
+      const modeIdx = Math.floor(Math.random() * 5);
+      const nums = [...pool, pool[modeIdx]]; // 6 numbers, one duplicated
+      // Add one more distinct number for odd count (7 total)
+      let extra;
+      do { extra = Math.floor(Math.random() * 24) + 2; } while (nums.includes(extra));
+      nums.push(extra);
+
+      const sum = nums.reduce((a, b) => a + b, 0);
+      if (sum % 7 !== 0) continue; // mean must be whole number
+      const range = Math.max(...nums) - Math.min(...nums);
+      if (range < 8 || range > 35) continue;
+
+      this.dataset = shuffle(nums);
+      this.sorted = [...nums].sort((a, b) => a - b);
+      return;
+    }
+    // Fallback: simple guaranteed dataset
+    this.dataset = shuffle([4, 7, 9, 7, 12, 5, 14]);
+    this.sorted = [4, 5, 7, 7, 9, 12, 14];
+  },
+
+  buildUI() {
+    const content = document.getElementById('game-content');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'dd-wrapper';
+    wrapper.id = 'dd-wrapper';
+    content.appendChild(wrapper);
+
+    // Progress dots
+    const dots = document.createElement('div');
+    dots.className = 'dd-progress-dots';
+    dots.id = 'dd-dots';
+    this.ROUNDS.forEach((_, i) => {
+      const dot = document.createElement('div');
+      dot.className = 'dd-dot' + (i === 0 ? ' active' : '');
+      dots.appendChild(dot);
+    });
+    wrapper.appendChild(dots);
+
+    // Round label
+    const label = document.createElement('div');
+    label.className = 'dd-round-label';
+    label.id = 'dd-label';
+    wrapper.appendChild(label);
+
+    // Prompt
+    const prompt = document.createElement('div');
+    prompt.className = 'dd-prompt';
+    prompt.id = 'dd-prompt';
+    wrapper.appendChild(prompt);
+
+    // Sorted hint (shown for median round)
+    const hint = document.createElement('div');
+    hint.className = 'dd-sorted-hint';
+    hint.id = 'dd-hint';
+    wrapper.appendChild(hint);
+
+    // Tiles
+    const tiles = document.createElement('div');
+    tiles.className = 'dd-tiles';
+    tiles.id = 'dd-tiles';
+    this.tileEls = [];
+    this.dataset.forEach((n, i) => {
+      const tile = document.createElement('div');
+      tile.className = 'dd-tile';
+      tile.textContent = n;
+      tile.addEventListener('click', () => this.onTileTap(i));
+      tiles.appendChild(tile);
+      this.tileEls.push(tile);
+    });
+    wrapper.appendChild(tiles);
+
+    this.buildInputPanel();
+    this.showRound();
+  },
+
+  buildInputPanel() {
+    const panel = document.getElementById('input-panel');
+    panel.innerHTML = '';
+
+    const round = this.ROUNDS[this.currentRound];
+    const isTyped = round.id === 'range' || round.id === 'mean';
+
+    if (isTyped) {
+      const display = document.createElement('div');
+      display.className = 'input-display';
+      display.id = 'dd-display';
+      panel.appendChild(display);
+
+      panel.appendChild(buildNumericKeypad(
+        d => this.onDigit(d),
+        () => this.onDelete(),
+        () => this.onEnter()
+      ));
+    } else {
+      // Tap-based: just a submit button
+      const submitBtn = document.createElement('button');
+      submitBtn.className = 'equiv-submit-btn';
+      submitBtn.id = 'dd-submit';
+      submitBtn.textContent = 'Submit ✓';
+      submitBtn.addEventListener('click', () => this.onSubmit());
+      panel.appendChild(submitBtn);
+    }
+  },
+
+  showRound() {
+    const round = this.ROUNDS[this.currentRound];
+    this.selectedTiles = new Set();
+    this.inputVal = '';
+    this.locked = false;
+
+    // Update dots
+    const dots = document.getElementById('dd-dots');
+    if (dots) {
+      [...dots.children].forEach((dot, i) => {
+        dot.className = 'dd-dot' + (i < this.currentRound ? ' done' : i === this.currentRound ? ' active' : '');
+      });
+    }
+
+    document.getElementById('dd-label').textContent = round.label;
+    document.getElementById('dd-prompt').innerHTML = round.prompt;
+
+    // Hint for median
+    const hint = document.getElementById('dd-hint');
+    if (hint) {
+      if (round.id === 'median') {
+        hint.textContent = `Sorted: ${this.sorted.join(', ')}`;
+      } else {
+        hint.textContent = '';
+      }
+    }
+
+    // Reset tiles
+    this.tileEls.forEach(tile => {
+      tile.className = 'dd-tile';
+    });
+
+    // Rebuild input panel for this round
+    this.buildInputPanel();
+
+    // Update display
+    const display = document.getElementById('dd-display');
+    if (display) {
+      display.textContent = '';
+      display.className = 'input-display';
+    }
+  },
+
+  onTileTap(i) {
+    if (this.locked) return;
+    const round = this.ROUNDS[this.currentRound];
+    if (round.id === 'range' || round.id === 'mean') return; // typed rounds
+
+    const tile = this.tileEls[i];
+    if (tile.classList.contains('correct') || tile.classList.contains('dim')) return;
+
+    if (round.id === 'min' || round.id === 'max') {
+      // Single-select
+      this.selectedTiles.forEach(j => {
+        if (j !== i) this.tileEls[j].classList.remove('selected');
+      });
+      this.selectedTiles.clear();
+    }
+
+    if (this.selectedTiles.has(i)) {
+      this.selectedTiles.delete(i);
+      tile.classList.remove('selected');
+    } else {
+      this.selectedTiles.add(i);
+      tile.classList.add('selected');
+    }
+  },
+
+  onSubmit() {
+    if (this.locked || this.selectedTiles.size === 0) return;
+    const round = this.ROUNDS[this.currentRound];
+    this.evaluateTapRound(round.id);
+  },
+
+  onDigit(d) {
+    if (this.locked) return;
+    if (this.inputVal.length >= 3) return;
+    this.inputVal += d;
+    this.updateDisplay();
+  },
+
+  onDelete() {
+    if (this.locked) return;
+    this.inputVal = this.inputVal.slice(0, -1);
+    this.updateDisplay();
+  },
+
+  onEnter() {
+    if (this.locked || !this.inputVal) return;
+    const round = this.ROUNDS[this.currentRound];
+    this.evaluateTypedRound(round.id);
+  },
+
+  updateDisplay() {
+    const display = document.getElementById('dd-display');
+    if (!display) return;
+    display.textContent = this.inputVal;
+    display.className = 'input-display' + (this.inputVal ? ' has-value' : '');
+  },
+
+  evaluateTapRound(roundId) {
+    const nums = this.dataset;
+    const min = Math.min(...nums);
+    const max = Math.max(...nums);
+
+    // Find mode: value(s) with highest frequency
+    const freq = {};
+    nums.forEach(n => { freq[n] = (freq[n] || 0) + 1; });
+    const maxFreq = Math.max(...Object.values(freq));
+    const modeVals = Object.keys(freq).filter(k => freq[k] === maxFreq).map(Number);
+
+    // Median: middle of sorted array (odd count = single middle)
+    const medianVal = this.sorted[Math.floor(this.sorted.length / 2)];
+
+    let correctIndices = new Set();
+
+    if (roundId === 'min') {
+      nums.forEach((n, i) => { if (n === min) correctIndices.add(i); });
+      // Only need one tap — accept any tile showing min
+    } else if (roundId === 'max') {
+      nums.forEach((n, i) => { if (n === max) correctIndices.add(i); });
+    } else if (roundId === 'mode') {
+      nums.forEach((n, i) => { if (modeVals.includes(n)) correctIndices.add(i); });
+    } else if (roundId === 'median') {
+      nums.forEach((n, i) => { if (n === medianVal) correctIndices.add(i); });
+    }
+
+    // For min/max/median: any one correct tile is sufficient
+    const needAll = roundId === 'mode';
+    let isCorrect;
+
+    if (needAll) {
+      // All mode tiles must be selected, no wrong ones
+      const selectedVals = [...this.selectedTiles].map(i => nums[i]);
+      const wrongSelected = selectedVals.some(v => !modeVals.includes(v));
+      const allModeSelected = modeVals.every(v => selectedVals.includes(v));
+      isCorrect = !wrongSelected && allModeSelected;
+    } else {
+      // At least one selected tile must be correct, no wrong ones
+      const selectedVals = [...this.selectedTiles].map(i => nums[i]);
+      const anyCorrect = [...this.selectedTiles].some(i => correctIndices.has(i));
+      const anyWrong = [...this.selectedTiles].some(i => !correctIndices.has(i));
+      isCorrect = anyCorrect && !anyWrong;
+    }
+
+    this.locked = true;
+
+    if (isCorrect) {
+      // Flash correct tiles green
+      this.selectedTiles.forEach(i => {
+        this.tileEls[i].classList.remove('selected');
+        this.tileEls[i].classList.add('correct');
+      });
+      // Dim others
+      this.tileEls.forEach((tile, i) => {
+        if (!this.selectedTiles.has(i)) tile.classList.add('dim');
+      });
+      setTimeout(() => this.nextRound(), 700);
+    } else {
+      State.addError();
+      // Flash wrong selections red, show correct ones
+      this.selectedTiles.forEach(i => {
+        const isRight = correctIndices.has(i) || (needAll && modeVals.includes(nums[i]));
+        this.tileEls[i].classList.remove('selected');
+        this.tileEls[i].classList.add(isRight ? 'correct' : 'error');
+      });
+      // Show missed correct tiles
+      correctIndices.forEach(i => {
+        if (!this.selectedTiles.has(i)) {
+          this.tileEls[i].classList.add('missed');
+        }
+      });
+      setTimeout(() => {
+        // Reset for retry
+        this.tileEls.forEach(tile => {
+          tile.classList.remove('error', 'missed', 'correct', 'dim', 'selected');
+        });
+        this.selectedTiles.clear();
+        this.locked = false;
+      }, 1200);
+    }
+  },
+
+  evaluateTypedRound(roundId) {
+    const nums = this.dataset;
+    const min = Math.min(...nums);
+    const max = Math.max(...nums);
+    const range = max - min;
+    const sum = nums.reduce((a, b) => a + b, 0);
+    const mean = sum / nums.length;
+
+    const answer = parseInt(this.inputVal, 10);
+    const correct = roundId === 'range' ? range : mean;
+    const isCorrect = answer === correct;
+
+    this.locked = true;
+    const display = document.getElementById('dd-display');
+
+    if (isCorrect) {
+      if (display) {
+        display.style.background = 'var(--correct-light)';
+        display.style.borderColor = 'var(--correct)';
+        display.style.color = 'var(--correct)';
+      }
+      setTimeout(() => {
+        if (display) { display.style.background = ''; display.style.borderColor = ''; display.style.color = ''; }
+        this.nextRound();
+      }, 600);
+    } else {
+      State.addError();
+      if (display) {
+        display.style.background = 'var(--error-light)';
+        display.style.borderColor = 'var(--error)';
+        display.style.color = 'var(--error)';
+      }
+      setTimeout(() => {
+        if (display) { display.style.background = ''; display.style.borderColor = ''; display.style.color = ''; }
+        this.inputVal = '';
+        this.updateDisplay();
+        this.locked = false;
+      }, 900);
+    }
+  },
+
+  nextRound() {
+    this.currentRound++;
+    if (this.currentRound >= this.ROUNDS.length) {
+      this.finish();
+    } else {
+      this.showRound();
+    }
+  },
+
+  finish() {
+    const nums = this.dataset;
+    const sorted = this.sorted;
+    const min = Math.min(...nums);
+    const max = Math.max(...nums);
+    const range = max - min;
+    const sum = nums.reduce((a, b) => a + b, 0);
+    const mean = sum / nums.length;
+    const freq = {};
+    nums.forEach(n => { freq[n] = (freq[n] || 0) + 1; });
+    const maxFreq = Math.max(...Object.values(freq));
+    const modeVals = Object.keys(freq).filter(k => freq[k] === maxFreq).map(Number).sort((a,b)=>a-b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+
+    App.showResults({
+      title: 'Data Dash Complete! 📊',
+      extra: `<div class="result-stat full-width" style="font-size:12px;color:var(--text-light);text-align:left;line-height:1.8;">
+        <div style="font-weight:700;color:var(--text);margin-bottom:4px;">Dataset: ${sorted.join(', ')}</div>
+        Min: ${min} &nbsp;|&nbsp; Max: ${max} &nbsp;|&nbsp; Range: ${range}<br>
+        Mode: ${modeVals.join(', ')} &nbsp;|&nbsp; Median: ${median} &nbsp;|&nbsp; Mean: ${mean}
       </div>`
     });
   },
