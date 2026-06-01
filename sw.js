@@ -3,7 +3,7 @@
    Bump CACHE_VERSION whenever you deploy new files so the
    browser re-caches everything on the next online visit.
    ============================================================ */
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_NAME = `sus-game-${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
