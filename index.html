@@ -1065,6 +1065,13 @@ html, body {
         <p>Fill in the 2–9 times table grid. Close all boxes to win!</p>
       </div>
     </div>
+    <div class="game-card" onclick="App.startGame(7)">
+      <div class="game-card-icon icon-4">🎲</div>
+      <div class="game-card-text">
+        <h3>Random Grid</h3>
+        <p>Like the grid, but questions come up randomly. Miss one? The answer flashes and you move on!</p>
+      </div>
+    </div>
     <!-- Factor Hunt games temporarily hidden — see todo.md -->
     <!-- <div class="game-card" onclick="App.startGame(2)">
       <div class="game-card-icon icon-2">🔢</div>
@@ -1284,7 +1291,8 @@ const App = {
       3: 'Factor Hunt (Auto)',
       4: 'Multiplication Flash Cards',
       5: 'Division Flash Cards',
-      6: 'Equivalence Challenge'
+      6: 'Equivalence Challenge',
+      7: 'Random Grid'
     };
     document.getElementById('game-title').textContent = titles[num] || 'Game';
 
@@ -1294,7 +1302,7 @@ const App = {
 
     this.showScreen('game-screen');
 
-    const games = { 1: Game1, 2: Game2, 3: Game3, 4: Game4, 5: Game5, 6: Game6 };
+    const games = { 1: Game1, 2: Game2, 3: Game3, 4: Game4, 5: Game5, 6: Game6, 7: Game7 };
     this.currentGameObj = games[num];
     this.currentGameObj.init();
   },
@@ -2467,6 +2475,228 @@ const Game6 = {
         <div class="lbl">Rounds Correct</div>
       </div>`
     });
+  },
+
+  cleanup() {}
+};
+
+/* ============================================================
+   GAME 7 — RANDOM GRID
+   ============================================================ */
+const Game7 = {
+  selectedCell: null,
+  inputVal: '',
+  cells: {},
+  closedCount: 0,
+  totalCells: 64,
+  locked: false,
+
+  init() {
+    this.selectedCell = null;
+    this.inputVal = '';
+    this.cells = {};
+    this.closedCount = 0;
+    this.locked = false;
+    this.buildGrid();
+    this.buildInputPanel();
+    Timer.start();
+    setTimeout(() => this.selectRandomCell(), 100);
+  },
+
+  buildGrid() {
+    const content = document.getElementById('game-content');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'mult-grid-wrapper';
+
+    const grid = document.createElement('div');
+    grid.className = 'mult-grid';
+
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell';
+
+        if (r === 0 && c === 0) {
+          cell.classList.add('corner');
+          cell.textContent = '×';
+        } else if (r === 0) {
+          cell.classList.add('header');
+          cell.textContent = NUMS[c - 1];
+        } else if (c === 0) {
+          cell.classList.add('header');
+          cell.textContent = NUMS[r - 1];
+        } else {
+          const row = NUMS[r - 1];
+          const col = NUMS[c - 1];
+          const key = `${row},${col}`;
+          cell.classList.add('open');
+          cell.dataset.row = row;
+          cell.dataset.col = col;
+          cell.addEventListener('click', () => this.selectCell(row, col));
+          this.cells[key] = { el: cell, closed: false };
+        }
+        grid.appendChild(cell);
+      }
+    }
+
+    wrapper.appendChild(grid);
+    content.appendChild(wrapper);
+  },
+
+  buildInputPanel() {
+    const panel = document.getElementById('input-panel');
+
+    const indicator = document.createElement('div');
+    indicator.className = 'selected-indicator';
+    indicator.id = 'g7-indicator';
+    panel.appendChild(indicator);
+
+    const display = document.createElement('div');
+    display.className = 'input-display';
+    display.id = 'g7-display';
+    panel.appendChild(display);
+
+    panel.appendChild(buildNumericKeypad(
+      d => this.onDigit(d),
+      () => this.onDelete(),
+      () => this.onEnter()
+    ));
+  },
+
+  selectRandomCell() {
+    const openKeys = Object.keys(this.cells).filter(k => !this.cells[k].closed);
+    if (openKeys.length === 0) return;
+    // Avoid immediately repeating the same cell when possible
+    let candidates = openKeys;
+    if (this.selectedCell && candidates.length > 1) {
+      const currentKey = `${this.selectedCell.row},${this.selectedCell.col}`;
+      candidates = openKeys.filter(k => k !== currentKey);
+    }
+    const key = candidates[Math.floor(Math.random() * candidates.length)];
+    const [r, c] = key.split(',').map(Number);
+    this.selectCell(r, c);
+  },
+
+  selectCell(row, col) {
+    if (this.locked) return;
+    const key = `${row},${col}`;
+    const cellData = this.cells[key];
+    if (!cellData || cellData.closed) return;
+
+    if (this.selectedCell) {
+      const prevKey = `${this.selectedCell.row},${this.selectedCell.col}`;
+      const prev = this.cells[prevKey];
+      if (prev && !prev.closed) {
+        prev.el.classList.remove('selected');
+        prev.el.classList.add('open');
+      }
+    }
+
+    this.selectedCell = { row, col };
+    this.inputVal = '';
+    this.updateDisplay();
+
+    cellData.el.classList.remove('open');
+    cellData.el.classList.add('selected');
+
+    const ind = document.getElementById('g7-indicator');
+    if (ind) {
+      ind.style.color = '';
+      ind.innerHTML = `<strong>${row} × ${col}</strong> = ?`;
+    }
+  },
+
+  onDigit(d) {
+    if (this.locked || !this.selectedCell) return;
+    if (this.inputVal.length >= 3) return;
+    this.inputVal += d;
+    this.updateDisplay();
+  },
+
+  onDelete() {
+    if (this.locked || !this.selectedCell) return;
+    this.inputVal = this.inputVal.slice(0, -1);
+    this.updateDisplay();
+  },
+
+  updateDisplay() {
+    const display = document.getElementById('g7-display');
+    if (!display) return;
+    display.textContent = this.inputVal;
+    display.className = 'input-display' + (this.inputVal ? ' has-value' : '');
+  },
+
+  onEnter() {
+    if (this.locked || !this.selectedCell || !this.inputVal) return;
+
+    const { row, col } = this.selectedCell;
+    const correct = row * col;
+    const answer = parseInt(this.inputVal, 10);
+    const ind = document.getElementById('g7-indicator');
+
+    if (answer === correct) {
+      this.closeCell(row, col);
+      if (row !== col) {
+        const symKey = `${col},${row}`;
+        if (this.cells[symKey] && !this.cells[symKey].closed) {
+          this.closeCell(col, row);
+        }
+      }
+      this.selectedCell = null;
+      this.inputVal = '';
+      this.updateDisplay();
+
+      if (ind) {
+        ind.style.color = 'var(--correct)';
+        ind.innerHTML = `✓ &nbsp;${correct}`;
+      }
+
+      if (this.closedCount >= this.totalCells) {
+        setTimeout(() => this.finish(), 500);
+      } else {
+        this.locked = true;
+        setTimeout(() => {
+          this.locked = false;
+          this.selectRandomCell();
+        }, 500);
+      }
+    } else {
+      State.addError();
+      this.locked = true;
+
+      // Return the cell to open state — it stays in the pool for later
+      const key = `${row},${col}`;
+      this.cells[key].el.classList.remove('selected');
+      this.cells[key].el.classList.add('open');
+      this.selectedCell = null;
+      this.inputVal = '';
+      this.updateDisplay();
+
+      if (ind) {
+        ind.style.color = 'var(--error)';
+        ind.innerHTML = `✗ &nbsp;${row} × ${col} = <strong>${correct}</strong>`;
+      }
+
+      setTimeout(() => {
+        this.locked = false;
+        this.selectRandomCell();
+      }, 1500);
+    }
+  },
+
+  closeCell(row, col) {
+    const key = `${row},${col}`;
+    const cellData = this.cells[key];
+    if (!cellData || cellData.closed) return;
+    cellData.closed = true;
+    cellData.el.classList.remove('open', 'selected');
+    cellData.el.classList.add('closed');
+    cellData.el.textContent = row * col;
+    this.closedCount++;
+  },
+
+  finish() {
+    App.showResults({ title: 'Random Grid Complete! 🎉' });
   },
 
   cleanup() {}
